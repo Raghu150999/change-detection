@@ -1,0 +1,31 @@
+{
+  "name": "change_detection",
+  "version": "1.0.0",
+  "description": "A web app for change detection and natural hazard classification in multi temporal satellite images",
+  "main": "index.js",
+  "dependencies": {
+    "@google/earthengine": "^0.1.178",
+    "ejs": "^2.6.1",
+    "express": "^4.17.1",
+    "express-handlebars": "^3.1.0",
+    "hbs": "^4.0.4"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Raghu150999/Change_Detection.git"
+  },
+  "keywords": [
+    "change",
+    "detection"
+  ],
+  "author": "Raghu",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Raghu150999/Change_Detection/issues"
+  },
+  "homepage": "https://github.com/Raghu150999/Change_Detection#readme"
+}
