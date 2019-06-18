@@ -1,0 +1,21 @@
+.footer {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    text-align: center;
+}
+
+.pills-section {
+    padding-top: 1em;
+}
+
+.search-btn {
+    margin-top: 0.8em;
+    margin-bottom: 0.8em;
+}
+
+.location-select {
+    width: 23%;
+    display: block;
+}

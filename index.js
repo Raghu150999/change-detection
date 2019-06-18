@@ -1,26 +1,56 @@
 const ee = require('@google/earthengine');
 const express = require('express');
-const ejs = require('ejs')
+const bodyParser = require('body-parser');
+const morgan = require('morgan');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const api = require('./routes/api');
+
+require('dotenv').config();
+
+// Setup mongoose
+mongoose.Promise = global.Promise;
+const mongodb_uri = "mongodb://localhost/cddb";
+mongoose.connect(mongodb_uri, { useNewUrlParser: true })
+.catch(err => console.error(err));
+
 const app = express()
-app.set('view engine', 'ejs')
+app.use(express.static('public'));
+app.set('view engine', 'ejs');
+app.use(cors());
+app.use(morgan('dev'));
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json())
+
+// Always route after use all necessary middlewares
+app.use('/api', api);
 
 // Private key, in `.json` format, for an Earth Engine service account.
 const PRIVATE_KEY = require('./privatekey.json');
 const PORT = process.env.PORT || 3000;
 
-ee.data.authenticateViaPrivateKey(PRIVATE_KEY, () => {
-  ee.initialize(null, null, () => {
-    app.listen(PORT);
-		console.log(`Listening on port ${PORT}`);
-    // image.getMap({min: 0, max: 1000}, ({mapid, token}) => {
-    //   response.render('index', {mapid, token});
-		// });
-  }, function(e) {
-      console.log(e)
-  });
-});
+app.listen(PORT);
+console.log(`Listening on port ${PORT}`);
+
+
+// Earth Engine api call use when testing ee code
+// ee.data.authenticateViaPrivateKey(PRIVATE_KEY, () => {
+//   ee.initialize(null, null, () => {
+//     app.listen(PORT);
+// 		console.log(`Listening on port ${PORT}`);
+//     // image.getMap({min: 0, max: 1000}, ({mapid, token}) => {
+//     //   response.render('index', {mapid, token});
+// 		// });
+//   }, function(e) {
+//       console.log(e)
+//   });
+// });
 
 app.get('/', (req, res) => {
+	res.render('index');
+})
+
+app.get('/getdata', (req, res) => {
 
 	var sentinel1 = ee.ImageCollection("COPERNICUS/S1_GRD")
 
@@ -611,8 +641,22 @@ app.get('/', (req, res) => {
 
 	var imageURL2 = second.getThumbURL(imageVisParam);
 
+	// Difference image for change detection
+	var diffimage = ee.Image().expression(
+		'(2 * B1 + B2)', {
+			'B1': first.select('classification'),
+			'B2': second.select('classification')
+		});
+	
+	var imageURL3 = diffimage.getThumbURL({
+		min: 0,
+		max: 3,
+		palette: ['white', 'brown', 'blue', 'white']
+	});
+
 	res.render('index.ejs', {
 		url: imageURL,
-		url2: imageURL2
+		url2: imageURL2,
+		url3: imageURL3
 	});
 })

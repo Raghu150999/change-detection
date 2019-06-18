@@ -1,0 +1,140 @@
+<!-- Alert toast -->
+<div id='alert-toast' style="position: relative"></div>
+
+<!-- start date picker -->
+<label for="start_date">Start Date</label>
+<input id="start_date" width="312" class="datepicker" />
+<br>
+
+<!-- end date picker -->
+<label for="end_date">End Date</label>
+<input id="end_date" width="312" class="datepicker" />
+<br>
+
+<!-- location select -->
+<select class="custom-select location-select" id="locationSelect">
+  <option selected>Choose a location</option>
+</select>
+
+<!-- submit -->
+<button type="button" class="btn btn-primary search-btn" onclick="handleSubmit()">Search</button>
+
+<!-- tabs -->
+<ul class="nav nav-tabs" id="myTab" role="tablist">
+  <li class="nav-item">
+    <a class="nav-link active" id="flood-tab" data-toggle="tab" href="#flood" role="tab" aria-controls="flood" aria-selected="true">Flood</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" id="fire-tab" data-toggle="tab" href="#fire" role="tab" aria-controls="fire" aria-selected="false">Forest Fire</a>
+  </li>
+</ul>
+
+<div class="tab-content" id="myTabContent">
+  <div class="tab-pane fade show active" id="flood" role="tabpanel" aria-labelledby="flood-tab">...</div>
+  <div class="tab-pane fade" id="fire" role="tabpanel" aria-labelledby="fire-tab">...</div>
+</div>
+  
+<script>
+  // Date() to formatted Date conversion
+  let d = new Date();
+  let strd = '' + (d.getMonth()+1) + '/' + d.getDate() + '/' + d.getFullYear();
+  let td = new Date(strd);
+  let $start_date, $end_date;
+
+  $(document).ready(function() {
+    $start_date = $('#start_date').datepicker({
+      change: function(e) {
+        let sd = new Date($start_date.value());
+        if(sd > td) {
+          $start_date.value(strd);
+        }
+      }
+    });
+    $end_date = $('#end_date').datepicker({
+      change: function(e) {
+        let ed = new Date($end_date.value());
+        if(ed > td) {
+          $end_date.value(strd);
+        }
+      }
+    });
+
+    // Initializing to today's date
+    $start_date.value(strd);
+    $end_date.value(strd);
+    
+    // datepicker value to Date() conversion
+    // console.log(new Date($start_date.value()))
+
+    // Http Request to get locations
+    let xhttp = new XMLHttpRequest();
+    xhttp.onreadystatechange = function() {
+      if(this.readyState == 4 && this.status == 200) {
+        locations = JSON.parse(this.responseText);
+
+        // Use '%' twice to escape ejs inside ejs
+        let template = `
+            <option selected>Choose a location</option>
+            <%% locations.forEach(location => { %>
+              <option><%%= location.locationName %></option>
+            <%% }) %>
+          `;
+        let html = ejs.render(template, {locations: locations});
+        $('#locationSelect').html(html)
+      }
+    }
+    xhttp.open('GET', '/api/locations', true);
+    xhttp.send();
+  })
+
+  let handleChange = (id) => {
+    // Equivalence with jQuery
+    // if id = 'abc'
+    // $(document.getElementById(id)) == $('#abc')
+    let element = $(document.getElementById(id)).datepicker();
+    var jqelement = $('#' + id).datepicker();
+    let date = element.value();
+    date = new Date(date);
+  }
+  let selectChange = () => {
+    let val = $('#locationSelect')[0].value;
+    if(val == 'Choose a location') {
+      console.log('Not a valid selection');
+    }
+  }
+  let handleSubmit = () => {
+    let sd = $start_date.value();
+    let ed = $end_date.value();
+    if(sd > ed) {
+      let template = `
+        <div class="toast" role="alert" aria-live="assertive" aria-atomic="true" style="position: absolute; top: 0; right: 0; z-index: 1; width: 400px;">
+          <div class="toast-header">
+            <strong class="mr-auto">Error</strong>
+            <small class="text-muted">just now</small>
+            <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="toast-body">
+            Invalid Date field values!
+          </div>
+        </div>
+      `;
+      $('#alert-toast').html(template)
+      $('.toast').toast({
+        autohide: false
+      });
+      $('.toast').toast('show');
+    } else {
+      let data = {
+        start_date: sd,
+        end_date: ed,
+        location: $('#locationSelect')[0].value
+      };
+      axios.post('/api/getdata', data)
+        .then(res => {
+          console.log(res.data);
+        });
+    }
+  }
+</script>
