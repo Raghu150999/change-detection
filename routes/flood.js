@@ -19,10 +19,9 @@ module.exports = function(app) {
 		}
 		Location.findOne({locationName})
 		.then(location => {
-			let sar_urls = [], classified_urls = [], change_urls = [], statics = [];
+			let statics = [];
 			let sceneMetas = location.sceneMetas;
 			let promises = [];
-			let promisesIdx = [];
 			let promise;
 			// Get the trained classifier stored in app.locals
 			var trained = app.locals.trained;
@@ -38,6 +37,9 @@ module.exports = function(app) {
 				idx.forEach(i => {
 					promise = (i => {
 						return new Promise((resolve, reject) => {
+							let promise;
+							let promises = [];
+
 							console.log(i);
 							var image = ee.Image(list.get(i));
 							var geometry = image.geometry();
@@ -49,9 +51,13 @@ module.exports = function(app) {
 							promise = (image => {
 								return new Promise((resolve, reject) => {
 									image.getThumbURL(Utils.getImageVisParams('sar'), url => {
-										sar_urls.push(url);
 										console.log('sar');
-										resolve();
+										let data = {
+											sar_url: url,
+											date,
+											locationName
+										}
+										resolve(data);
 									})
 								})
 							})(image)
@@ -63,67 +69,41 @@ module.exports = function(app) {
 							promise = (image => {
 								return new Promise((resolve, reject) => {
 									image.getThumbURL(Utils.getImageVisParams('classified'), url => {
-										classified_urls.push(url);
-										resolve();
+										let data = {
+											classified_url: url
+										}
+										resolve(data);
 									})
 								})
 							})(image)
 							promises.push(promise);
 
-							var pfc_mean = Utils.getPreFlood(sceneMeta);
-							pfc_mean = pfc_mean.classify(trained);
-							pfc_mean = pfc_mean.focal_median(300, 'circle', 'meters');
-							var diffimage = ee.Image().expression(
-								'2 * B1 + B2 + 1', {
-									'B1': pfc_mean.select('classification'),
-									'B2': image.select('classification')
-								});
-							diffimage = diffimage.expression('b1 >= 1 ? b1 >= 2 ? b1 >= 3 ? b1 >= 4 ? 4 : 3 : 2 : 1 : 0', {
-								'b1': diffimage.select('constant')
-							});
-							diffimage = diffimage.clip(geometry);
-							
-							promise = (image => {
-								return new Promise((resolve, reject) => {
-									image.getThumbURL(Utils.getImageVisParams('change'), url => {
-										change_urls.push(url);
-										resolve();
-									})
-								})
-							})(diffimage)
-							promises.push(promise);
 
-							let static = {
-								date,
-								locationName
-							}
-							statics.push(static)
-							resolve();
+							Promise.all(promises).then(function () {
+								let data = {
+									...arguments[0][0],
+									...arguments[0][1]
+								}
+								resolve(data);
+							})
 						})
 					})(i);
-					promisesIdx.push(promise);
+					promises.push(promise);
 				})
 			})
 			console.log('c');
-			Promise.all(promisesIdx).then(() => {
-				Promise.all(promises).then(() => {
-					console.log('f');
-					let html = '';
-					sar_urls.forEach((item, index) => {
-						let data = {
-							sar_url: sar_urls[index],
-							classified_url: classified_urls[index],
-							change_url: change_urls[index],
-							id: index,
-							...statics[index]
-						};
-						ejs.renderFile(__dirname + '/../views/partials/card.ejs', data, (err, str) => {
-							html += '\n';
-							html += str;
-						});
-					})
-					res.send(html);
+			// Need to use classic functions (can't use arrow function. Error: arguments[0].forEach is not a function)
+			Promise.all(promises).then(function () {
+				console.log('f');
+				let html = '';
+				arguments[0].forEach((data, index) => {
+					data.id = index;
+					ejs.renderFile(__dirname + '/../views/partials/card.ejs', data, (err, str) => {
+						html += '\n';
+						html += str;
+					});
 				})
+				res.send(html);
 			})
 		})
 	})

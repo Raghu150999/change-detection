@@ -6,14 +6,14 @@ for (var i = 0; i < 10; i++) {
 			setTimeout(function() {
 				console.log(i);
 				resolve(i);
-			}, 2000 + i * 1000)
+			}, 200 + i * 100)
 		})
 	})(i)
 	promises.push(promise);
 }
 
-Promise.all(promises).then(function() {
-	for(var i = 0; i < 10; i++) {
-		console.log('value', arguments[0][i]);
-	}
+Promise.all(promises).then(function () {
+	arguments[0].forEach(i => {
+		console.log('value', i);
+	})
 })
