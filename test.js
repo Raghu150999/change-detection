@@ -6,7 +6,7 @@ for (var i = 0; i < 10; i++) {
 			setTimeout(function() {
 				console.log(i);
 				resolve(i);
-			}, 2000)
+			}, 2000 + i * 1000)
 		})
 	})(i)
 	promises.push(promise);
@@ -14,6 +14,6 @@ for (var i = 0; i < 10; i++) {
 
 Promise.all(promises).then(function() {
 	for(var i = 0; i < 10; i++) {
-		console.log('value', arguments[i]);
+		console.log('value', arguments[0][i]);
 	}
 })
