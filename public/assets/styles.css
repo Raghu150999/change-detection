@@ -19,3 +19,22 @@
     width: 23%;
     display: block;
 }
+
+.card-display {
+    width: 22rem;
+    margin: 1rem;
+    margin-left: 1rem;
+    display: inline-block;
+    box-shadow: -5px 5px 10px 1px rgba(0, 0, 0, .14),
+                2px -5px 10px 1px rgba(0, 0, 0, .14);
+}
+
+.collection {
+    overflow-y: scroll;
+    height: 500px;
+}
+
+.carousel-images {
+    object-fit: contain;
+    margin: 0.5rem;
+}
