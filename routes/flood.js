@@ -3,6 +3,9 @@ const Utils = require('./../utils/utils');
 const Location = require('./../models/location');
 const ee = require('@google/earthengine');
 const ejs = require('ejs');
+const SceneMeta = require('./../models/sceneMeta');
+
+// /api/flood
 
 module.exports = function(app) {
 	router.post('/getdata', (req, res) => {
@@ -19,7 +22,6 @@ module.exports = function(app) {
 		}
 		Location.findOne({locationName})
 		.then(location => {
-			let statics = [];
 			let sceneMetas = location.sceneMetas;
 			let promises = [];
 			let promise;
@@ -51,11 +53,12 @@ module.exports = function(app) {
 							promise = (image => {
 								return new Promise((resolve, reject) => {
 									image.getThumbURL(Utils.getImageVisParams('sar'), url => {
-										console.log('sar');
+										console.log(date);
 										let data = {
 											sar_url: url,
 											date,
-											locationName
+											locationName,
+											sceneMetaID: sceneMeta._id
 										}
 										resolve(data);
 									})
@@ -96,16 +99,52 @@ module.exports = function(app) {
 			Promise.all(promises).then(function () {
 				console.log('f');
 				let html = '';
+				let dataCollection = [];
 				arguments[0].forEach((data, index) => {
 					data.id = index;
 					ejs.renderFile(__dirname + '/../views/partials/card.ejs', data, (err, str) => {
 						html += '\n';
 						html += str;
 					});
+					dataCollection.push(data);
 				})
-				res.send(html);
+				res.send({
+					html,
+					data: dataCollection
+				});
 			})
 		})
+	})
+
+	router.post('/tile', (req, res) => {
+		let data = req.body;
+		console.log(data.date);
+		let date = new Date(data.date);
+		date.setDate(date.getDate() - 1);
+		let sd = date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate();
+		date.setDate(date.getDate() + 3);
+		let ed = date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate();
+		SceneMeta.findOne({_id: data.sceneMetaID})
+			.then(result => {
+				var images = Utils.getImages(result, sd, ed);
+				image = images.first();
+				let trained = app.locals.trained;
+				let geometry = image.geometry();
+				image = image.classify(trained);
+				image = image.focal_median(300, 'circle', 'meters');
+				image = image.expression('b("classification") == 0 ? 1 : 0');
+				image = image.updateMask(image.gt(0))
+				image = image.clip(geometry)
+				var vectors = image.reduceToVectors({
+					scale: 400
+				});
+				var kml_url = vectors.getDownloadURL({
+					format: 'kml',
+					filename: 'layer'
+				});
+				data.kml_url = kml_url;
+				res.send(data);
+			})
 	})
 	return router;
 }

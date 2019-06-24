@@ -1,8 +1,11 @@
+// Front-end script file for search.ejs template
+
 // Date() to formatted Date conversion
 let d = new Date();
 let strd = '' + (d.getMonth()+1) + '/' + d.getDate() + '/' + d.getFullYear();
 let td = new Date(strd);
 let $start_date, $end_date;
+let cache; // Cached data variable
 
 $(document).ready(function() {
 	$start_date = $('#start_date').datepicker({
@@ -81,8 +84,34 @@ let handleSubmit = () => {
 		};
 		axios.post('/api/flood/getdata', data)
 			.then(res => {
-				let html = `<div class = "collection">` + res.data + `</div>`
+				let html = `<div class = "collection">` + res.data.html + `</div>`
 				$('#flood').html(html);
+				cache = res.data.data;
 			});
 	}
+}
+
+let viewTile = (id) => {
+	id = Number(id);
+	let data = cache[id];
+	axios.post('/api/flood/tile', data)
+		.then(res => {
+			let data = res.data;
+			let template = `
+			<div class="container-fluid">
+				<a href="<%= sar_url %>" class="btn btn-primary" target="_blank">
+				<i class="fa fa-download" aria-hidden="true"></i><span> </span>Download SAR (jpeg)</a>
+				<br><br>
+				<a href="<%= classified_url %>" class="btn btn-primary" target="_blank">
+				<i class="fa fa-download" aria-hidden="true"></i><span> </span>Download Classified Layer (jpeg)</a>
+				<br><br>
+				<a href="<%= kml_url %>" class="btn btn-primary">
+				<i class="fa fa-download" aria-hidden="true"></i><span> </span>Download Layer (kml)</a>
+				<br><br>
+			</div>
+			`;
+			let html = ejs.render(template, data);
+			$('#modalBody').html(html);
+			$('#dmodal').modal();
+		})
 }
