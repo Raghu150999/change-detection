@@ -5,7 +5,9 @@ let sceneMetaSchema = new Schema({
 		coordinates: Array,
 		rons: Array, // relativeOrbitNumbers start and stop
 		isClipped: Boolean,
-		geometry: Object
+		geometry: Object,
+		scenesAcquired: Number,
+		locationName: String
 });
 
 let SceneMeta = mongoose.model('sceneMetas', sceneMetaSchema);

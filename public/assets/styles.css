@@ -38,3 +38,17 @@
     object-fit: contain;
     margin: 0.5rem;
 }
+
+#searchSpinner {
+    margin-left: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.buttons {
+    margin: 1rem;
+}
+
+.inputs, #msg {
+    margin: 1rem;
+    width: 50rem;
+}

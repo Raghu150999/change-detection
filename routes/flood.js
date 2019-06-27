@@ -13,6 +13,7 @@ module.exports = function(app) {
 		let ed = req.body.end_date;
 		sd = new Date(sd);
 		ed = new Date(ed);
+		ed.setDate(ed.getDate() + 2);
 		sd = sd.getFullYear() + '-' + (sd.getMonth() + 1) + '-' + sd.getDate();
 		ed = ed.getFullYear() + '-' + (ed.getMonth() + 1) + '-' + ed.getDate();
 		let locationName = req.body.locationName;
@@ -108,6 +109,11 @@ module.exports = function(app) {
 					});
 					dataCollection.push(data);
 				})
+				if (dataCollection.length == 0) {
+					html = `
+						<h2 style="margin: 1rem;" class="text-monospace">No products found!</h2>
+					`;
+				}
 				res.send({
 					html,
 					data: dataCollection

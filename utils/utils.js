@@ -1,4 +1,7 @@
 const ee = require('@google/earthengine');
+const nodemailer = require("nodemailer");
+const Receiver = require('./../models/receiver');
+
 var getSentinel = () => {
 	var sentinel = ee.ImageCollection('COPERNICUS/S1_GRD');
 	sentinel = sentinel.filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VV'))
@@ -90,4 +93,44 @@ module.exports.getPreFlood = (sceneMeta) => {
 								.merge(pfc_2019);
 	var mean = pfc.mean();
 	return mean;
+}
+
+module.exports.sendMail = (subject, text) => {
+	var string = '';
+	Receiver.find({})
+		.then(receivers => {
+			var len = receivers.length;
+			for (var i = 0; i < len; i++) {
+				string += receivers[i].receiverEmail;
+				if (i != len - 1)
+					string += ', ';
+			}
+			if (len > 0) {
+				// async..await is not allowed in global scope, must use a wrapper
+				async function main(){
+					// create reusable transporter object using the default SMTP transport
+					let transporter = nodemailer.createTransport({
+						host: 'smtp.gmail.com',
+						port: 465,
+						secure: true, // use SSL
+						auth: {
+							user: 'blakestark150999@gmail.com',
+							pass: 'blakestarkingmail'
+						}
+					});
+					
+					// send mail with defined transport object
+					let info = await transporter.sendMail({
+						from: '"Change Detection Alert" <blakestark150999@gmail.com>', // sender address
+						to: string, // list of receivers
+						subject: subject, // Subject line
+						text: text // plain text body
+					});
+					
+					console.log("Message sent: %s", info.messageId);
+					// Message sent: <b658f8ca-6296-ccf4-8306-87d57a0b4321@example.com>
+				}
+				main().catch(console.error);
+			}
+		})
 }

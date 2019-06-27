@@ -5,6 +5,8 @@ const morgan = require('morgan');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const Utils = require('./utils/utils');
+const SceneMeta = require('./models/sceneMeta');
+
 
 require('dotenv').config();
 
@@ -13,6 +15,7 @@ mongoose.Promise = global.Promise;
 const mongodb_uri = "mongodb://localhost/cddb";
 mongoose.connect(mongodb_uri, { useNewUrlParser: true })
 .catch(err => console.error(err));
+mongoose.set('useFindAndModify', false);
 
 const app = express()
 const api = require('./routes/api')(app);
@@ -34,7 +37,6 @@ const PORT = process.env.PORT || 3000;
 // app.listen(PORT);
 // console.log(`Listening on port ${PORT}`);
 
-
 // Earth Engine api call use when testing ee code
 ee.data.authenticateViaPrivateKey(PRIVATE_KEY, () => {
   ee.initialize(null, null, () => {
@@ -49,3 +51,39 @@ ee.data.authenticateViaPrivateKey(PRIVATE_KEY, () => {
 app.get('/', (req, res) => {
 	res.render('index');
 })
+
+let websiteDomain = 'www.website.com';
+
+// Checks for data every 6 hours and sends alert emails
+setInterval(function () {
+  SceneMeta.find({})
+    .then(result => {
+      result.forEach(sceneMeta => {
+        let d = new Date();
+        let locationName = sceneMeta.locationName;
+        let ed = d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+        var images = Utils.getImages(sceneMeta, '2015-01-01', ed);
+        images = images.sort('segmentStartTime', false);
+        var list = images.toList(300);
+        var len = list.length().getInfo();
+        var orlen = sceneMeta.scenesAcquired;
+        if (len > orlen) {
+          SceneMeta.findOneAndUpdate({_id: sceneMeta._id}, { $set: {scenesAcquired: len}})
+          let subject = 'New Data Available';
+          let text = 'New data has been acquired for ' + locationName + ' for the following acquistion date(s):\n\n';
+          for (var i = 0; i < len - orlen; i++) {
+            var image = ee.Image(list.get(i));
+            var date = new Date(image.toDictionary().get('segmentStartTime').getInfo());
+            text += '\t' + date + '\n\n';
+          }
+          text += '\n\n'
+          text += 'Please visit ' + websiteDomain + ' for more details\n';
+          Utils.sendMail(subject, text);
+        }
+      })
+    })
+}, 21600000)
+
+// setInterval(function() {
+//   Utils.sendMail('Test', 'Hi,\nThis is just a test email');
+// }, 10000)

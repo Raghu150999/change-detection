@@ -56,6 +56,10 @@ $(document).ready(function() {
 let handleSubmit = () => {
 	let sd = $start_date.value();
 	let ed = $end_date.value();
+	let spinner = `
+		<div class="spinner-border text-muted "></div>
+	`;
+	$('#searchSpinner').html(spinner);
 	if(sd > ed) {
 		let template = `
 			<div class="toast" role="alert" aria-live="assertive" aria-atomic="true" style="position: absolute; top: 0; right: 0; z-index: 1; width: 400px;">
@@ -86,7 +90,25 @@ let handleSubmit = () => {
 			.then(res => {
 				let html = `<div class = "collection">` + res.data.html + `</div>`
 				$('#flood').html(html);
+				$('#searchSpinner').html('');
 				cache = res.data.data;
+				// Error handling code to reload images until it loads
+				if (document.images) {
+					var imageArray = new Array(document.images.length);
+					var i = 0;
+					for (i = 0; i < document.images.length; i++) {
+						imageArray[i] = new Image();
+						imageArray[i].src = document.images[i].src;
+						//try to reload image in case of error
+						var imgErrorFunction = function () {
+							var img = this;
+							setTimeout(function () {
+								img.src = img.src + '&timestamp=' + new Date().getTime();
+							}, 200);
+						}
+						document.images[i].onerror = imgErrorFunction;
+					}
+				}
 			});
 	}
 }
