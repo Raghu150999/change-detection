@@ -6,6 +6,7 @@ let strd = '' + (d.getMonth()+1) + '/' + d.getDate() + '/' + d.getFullYear();
 let td = new Date(strd);
 let $start_date, $end_date;
 let cache; // Cached data variable
+let url = '';
 
 $(document).ready(function() {
 	$start_date = $('#start_date').datepicker({
@@ -53,9 +54,46 @@ $(document).ready(function() {
 	xhttp.send();
 })
 
+var displayError2 = () => {
+	let html = `
+		<div class="alert alert-danger alert-dismissible fade show" role="alert">
+			Please specify a location
+			<button type="button" class="close" data-dismiss="alert" aria-label="Close">
+				<span aria-hidden="true">&times;</span>
+			</button>
+		</div>
+	`;
+	$('#msg3').html(html);
+}
+
+var reloadImages = () => {
+	// Error handling code to reload images until it loads
+	if (document.images) {
+		var imageArray = new Array(document.images.length);
+		var i = 0;
+		for (i = 0; i < document.images.length; i++) {
+			imageArray[i] = new Image();
+			imageArray[i].src = document.images[i].src;
+			//try to reload image in case of error
+			var imgErrorFunction = function () {
+				var img = this;
+				setTimeout(function () {
+					img.src = img.src + '&timestamp=' + new Date().getTime();
+				}, 200);
+			}
+			document.images[i].onerror = imgErrorFunction;
+		}
+	}
+}
+
 let handleSubmit = () => {
 	let sd = $start_date.value();
 	let ed = $end_date.value();
+	let locationName = $('#locationSelect')[0].value;
+	if(locationName == 'Choose a location') {
+		displayError2();
+		return;
+	}
 	let spinner = `
 		<div class="spinner-border text-muted "></div>
 	`;
@@ -80,49 +118,40 @@ let handleSubmit = () => {
 			autohide: false
 		});
 		$('.toast').toast('show');
-	} else {
-		let data = {
-			start_date: sd,
-			end_date: ed,
-			locationName: $('#locationSelect')[0].value
-		};
-		axios.post('/api/flood/getdata', data)
-			.then(res => {
-				let html = `<div class = "collection">` + res.data.html + `</div>`
-				$('#flood').html(html);
-				$('#searchSpinner').html('');
-				cache = res.data.data;
-				// Error handling code to reload images until it loads
-				if (document.images) {
-					var imageArray = new Array(document.images.length);
-					var i = 0;
-					for (i = 0; i < document.images.length; i++) {
-						imageArray[i] = new Image();
-						imageArray[i].src = document.images[i].src;
-						//try to reload image in case of error
-						var imgErrorFunction = function () {
-							var img = this;
-							setTimeout(function () {
-								img.src = img.src + '&timestamp=' + new Date().getTime();
-							}, 200);
-						}
-						document.images[i].onerror = imgErrorFunction;
-					}
-				}
-			});
+		return;
 	}
+	let data = {
+		start_date: sd,
+		end_date: ed,
+		locationName: $('#locationSelect')[0].value
+	};
+	let satellite = $('#satelliteSelect')[0].value;
+	if(satellite == 'Sentinel 1') {
+		url = '/flood';
+	} else {
+		url = '/sentinel2';
+	}
+	axios.post('/api' + url + '/getdata', data)
+		.then(res => {
+			let html = `<div class = "collection">` + res.data.html + `</div>`
+			$('#flood').html(html);
+			$('#searchSpinner').html('');
+			cache = res.data.data;
+			reloadImages();
+		});
 }
 
 let viewTile = (id) => {
 	id = Number(id);
 	let data = cache[id];
-	axios.post('/api/flood/tile', data)
+	axios.post('/api' + url + '/tile', data)
 		.then(res => {
 			let data = res.data;
+			let type = url == '/flood' ? 'SAR' : 'Optical';
 			let template = `
 			<div class="container-fluid">
 				<a href="<%= sar_url %>" class="btn btn-primary" target="_blank">
-				<i class="fa fa-download" aria-hidden="true"></i><span> </span>Download SAR (jpeg)</a>
+				<i class="fa fa-download" aria-hidden="true"></i><span> </span>Download ${type} (jpeg)</a>
 				<br><br>
 				<a href="<%= classified_url %>" class="btn btn-primary" target="_blank">
 				<i class="fa fa-download" aria-hidden="true"></i><span> </span>Download Classified Layer (jpeg)</a>
@@ -133,7 +162,7 @@ let viewTile = (id) => {
 			</div>
 			`;
 			let html = ejs.render(template, data);
-			$('#modalBody').html(html);
-			$('#dmodal').modal();
+			$('#modalBody1').html(html);
+			$('#dmodal1').modal();
 		})
 }

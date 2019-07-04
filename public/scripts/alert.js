@@ -7,8 +7,11 @@ let register = () => {
 	}
 	if (email == '' || password == '') {
 		let html = `
-			<div class="alert alert-danger" role="alert">
+			<div class="alert alert-danger alert-dismissible fade show" role="alert">
 				Email or password cannot be empty
+				<button type="button" class="close" data-dismiss="alert" aria-label="Close">
+					<span aria-hidden="true">&times;</span>
+				</button>
 			</div>
 		`;
 		$('#msg').html(html);
@@ -29,8 +32,11 @@ let register = () => {
 				type = 'danger';
 			}
 			let html = `
-				<div class="alert alert-${type}" role="alert">
+				<div class="alert alert-${type} alert-dismissible fade show" role="alert">
 					${msg}
+					<button type="button" class="close" data-dismiss="alert" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
 				</div>
 			`;
 			$('#msg').html(html);
@@ -46,8 +52,11 @@ let remove = () => {
 	}
 	if (email == '' || password == '') {
 		let html = `
-			<div class="alert alert-danger" role="alert">
+			<div class="alert alert-danger alert-dismissible fade show" role="alert">
 				Email or password cannot be empty
+				<button type="button" class="close" data-dismiss="alert" aria-label="Close">
+					<span aria-hidden="true">&times;</span>
+				</button>
 			</div>
 		`;
 		$('#msg').html(html);
@@ -68,8 +77,11 @@ let remove = () => {
 				type = 'warning';
 			}
 			let html = `
-				<div class="alert alert-${type}" role="alert">
+				<div class="alert alert-${type} alert-dismissible fade show" role="alert">
 					${msg}
+					<button type="button" class="close" data-dismiss="alert" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
 				</div>
 			`;
 			$('#msg').html(html);

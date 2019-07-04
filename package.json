@@ -6,7 +6,6 @@
   "dependencies": {
     "@google/earthengine": "^0.1.178",
     "body-parser": "^1.19.0",
-    "cors": "^2.8.5",
     "dotenv": "^8.0.0",
     "ejs": "^2.6.1",
     "express": "^4.17.1",

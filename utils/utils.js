@@ -44,29 +44,51 @@ module.exports.getClassifier = () => {
 	return trained;
 }
 
-module.exports.getImageVisParams = (type) => {
+var getImageVisParams = (type) => {
 	var imageVisParam;
 	if (type == 'classified') {
 		imageVisParam = {
 			bands: ['classification'], 
 			min: 0,
 			max: 1, 
-			palette: ['68dae6', 'a5611b']
+			palette: ['68dae6', '8f8a82']
 		};
 	} else if (type == 'sar') {
 		imageVisParam = {
 			min: -25,
 			max: 0
 		};
-	} else {
+	} else if(type == 'change map') {
 		imageVisParam = {
 			min: 1, 
 			max: 4, 
 			palette: ['white', 'brown', 'blue', 'white']
+		} 
+	} else if(type == 'optical') {
+		imageVisParam = {
+			min: 0,
+			max: 3000,
+			bands: ['B4', 'B3', 'B2'],
+			format: 'png',
+
+		}
+	} else if(type == 'ndwi') {
+		imageVisParam = {
+			min: 0,
+			max: 0.3,
+			palette: ['8f8a82', '68dae6']
+		}
+	} else if(type == 'nd') {
+		imageVisParam = {
+			min: 0,
+			max: 10,
+			palette: ['62eb4a', 'cyan', 'blue']
 		}
 	}
 	return imageVisParam;
 }
+
+module.exports.getImageVisParams = getImageVisParams;
 
 module.exports.getImages = (sceneMeta, sd, ed) => {
 	var sentinel = getSentinel();
@@ -133,4 +155,74 @@ module.exports.sendMail = (subject, text) => {
 				main().catch(console.error);
 			}
 		})
+}
+
+module.exports.getkmlURL = (image) => {
+	return new Promise((resolve, reject) => {
+		let geometry = image.geometry();
+		image = image.expression('b("classification") == 0 ? 100 : 0');
+		image = image.updateMask(image.gt(0))
+		image = image.clip(geometry)
+		var vectors = image.reduceToVectors({
+			scale: 1000
+		});
+		var kml_url = vectors.getDownloadURL({
+			format: 'kml',
+			filename: 'river_layer'
+		});
+		resolve(kml_url);
+	})
+}
+
+module.exports.getkmlURLs2 = (image) => {
+	return new Promise((resolve, reject) => {
+		let geometry = image.geometry();
+		var ndwi = image.normalizedDifference(['B3', 'B11']);
+		var classified = ndwi.expression('b("nd") >= 0.09 ? 100 : 0');
+		classified = classified.expression('B1 == 0 ? B2 : 0', {
+			'B1': image.select('QA60'),
+			'B2': classified.select('constant')
+		})
+		classified = classified.updateMask(classified.gt(0))
+		classified = classified.clip(geometry);
+		var vectors = classified.reduceToVectors({
+			scale: 1000
+		});
+		var kml_url = vectors.getDownloadURL({
+			format: 'kml',
+			filename: 'river_layer_s2'
+		});
+		resolve(kml_url);
+	})
+}
+
+module.exports.getOpticalURL = (image) => {
+	return new Promise((resolve, reject) => {
+		image.getThumbURL(getImageVisParams('optical'), url => {
+			resolve(url);
+		})
+	})
+}
+
+module.exports.getClassifiedURL = (classified_image) => {
+	return new Promise((resolve, reject) => {
+		classified_image.getThumbURL(getImageVisParams('nd'), url => {
+			resolve(url);
+		});
+	})
+}
+
+module.exports.getClassified = (image, sceneID) => {
+	var len = sceneID.length;
+	var titleID = '';
+	for(var i = len - 6; i < len; i++) {
+		titleID += sceneID[i];
+	}
+	var pre = ee.Image("users/raghu15sep99/" + titleID);
+	var mndwi = image.normalizedDifference(['B3', 'B11']);
+	var classified = mndwi.gt(0.09); // Change threshold accordingly
+	var cloudmask = image.select('QA60').eq(0);
+	classified = classified.and(cloudmask);
+	classified = classified.select('nd').multiply(pre.select('constant'));
+	return classified;
 }

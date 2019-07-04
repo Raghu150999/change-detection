@@ -1,0 +1,13 @@
+<!-- Downloads Modal -->
+<%- include('modal.ejs', {id: 3}) %>
+
+<div class="btn-group" style="margin-top: 1rem; margin-bottom: 1rem;" role="group">
+  <button type="button" class="btn btn-secondary" onclick="getdata('2016')">2016</button>
+  <button type="button" class="btn btn-secondary" onclick="getdata('2017')">2017</button>
+	<button type="button" class="btn btn-secondary" onclick="getdata('2018')">2018</button>
+</div>
+
+<!-- spinner -->
+<div id="searchSpinner2" class="spinner"></div>
+
+<div id="halfyearlyMosaic"></div>

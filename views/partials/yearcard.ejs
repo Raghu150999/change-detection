@@ -1,5 +1,5 @@
-<div class="card card-display">
-	<div id="img<%= id %>" class="carousel slide carousel-images" data-ride="carousel">
+<div class="card card-display month-card">
+	<div id="imgyear<%= id %>" class="carousel slide carousel-images" data-ride="carousel">
 		<div class="carousel-inner">
 			<div class="carousel-item active">
 				<img class="d-block w-100" src="<%= sar_url %>" alt="First slide">
@@ -8,19 +8,19 @@
 				<img class="d-block w-100" src="<%= classified_url %>" alt="Second slide">
 			</div>
 		</div>
-		<a class="carousel-control-prev" href="#img<%= id %>" role="button" data-slide="prev">
+		<a class="carousel-control-prev" href="#imgyear<%= id %>" role="button" data-slide="prev">
 			<span class="carousel-control-prev-icon" aria-hidden="true"></span>
 			<span class="sr-only">Previous</span>
 		</a>
-		<a class="carousel-control-next" href="#img<%= id %>" role="button" data-slide="next">
+		<a class="carousel-control-next" href="#imgyear<%= id %>" role="button" data-slide="next">
 			<span class="carousel-control-next-icon" aria-hidden="true"></span>
 			<span class="sr-only">Next</span>
 		</a>
 	</div>
 	<div class="card-body">
 		<h5 class="card-title"><%= locationName %></h5>
-		<p class="card-text">Acquisition Date: <%= date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate() %></p>
-		<a href="#" onclick="viewTile('<%= id %>')" class="btn btn-primary">
+		<p class="card-text">Mosaic Period: <%= period %></p>
+		<a href="#" onclick="downloadYearLinks('<%= id %>')" class="btn btn-primary">
 			<i class="fa fa-download" aria-hidden="true"></i><span> </span>Download
 		</a>
 	</div>

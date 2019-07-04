@@ -2,6 +2,11 @@ const router = require('express').Router();
 const Location = require('./../models/location');
 const ee = require('@google/earthengine');
 const Utils = require('./../utils/utils');
+const Scene = require('./../models/scene');
+const s2SceneMeta = require('./../models/s2sceneMeta');
+const scene = require('./../models/scene');
+
+
 
 // Passing app object from index.js (contains app.locals.trained (trained classifier))
 
@@ -10,8 +15,10 @@ module.exports = function(app) {
 	// url: /api
 	const flood = require('./flood')(app);
 	const alert = require('./alert');
+	const sentinel2 = require('./sentinel2');
 	router.use('/flood', flood);
 	router.use('/alert', alert);
+	router.use('/sentinel2', sentinel2);
 
 	// Get all locations
 	router.get('/locations', (req, res) => {
@@ -52,7 +59,20 @@ module.exports = function(app) {
 			// res.send(kmlfileURL)
 		})
 	})
-	/*
+	
+	router.get('/updatelocation',(req, res) => {
+		var mosaicPolygon = [[[89.69234082173853, 24.015957508888174],
+		[96.80049511861353, 26.302867434914017],
+		[95.74580761861353, 28.988535193672025],
+		[92.15489089327184, 27.834779381447245],
+		[88.63765332173853, 26.745215103810708]]];
+		Location.findOneAndUpdate({}, {mosaicPolygon})
+			.then(result => {
+				console.log('done');
+				res.send('ok');
+			})
+	})
+
 	router.get('/addlocation', (req, res) => {
 		// Route for adding location see below for example
 		let scenes = [];
@@ -89,7 +109,25 @@ module.exports = function(app) {
 			.then(result => {
 				res.send('ok');
 			})
+	})
+	
+	router.get('/addscene', (req, res) => {
+		console.log('st');
+		s2SceneMeta.find({})
+		.then(result => {
+			console.log(result);
+			result.forEach(sceneMeta => {
+				Scene.find({sceneMetaID: sceneMeta._id})
+					.then(scenes => {
+						s2SceneMeta.findOneAndUpdate({_id: sceneMeta._id}, {$set: {scenes: scenes}})
+							.then(result => {
+								console.log('saved');
+							})
+					})
+			})
+		})
+		res.send('ok');
 	});
-	*/
+	
 	return router;
 }

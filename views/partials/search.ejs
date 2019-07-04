@@ -1,5 +1,5 @@
 <!-- Downloads Modal -->
-<%- include('modal.ejs') %>
+<%- include('modal.ejs', {id: 1}) %>
 
 <!-- Alert toast -->
 <div id='alert-toast' style="position: relative"></div>
@@ -19,11 +19,19 @@
   <option selected>Choose a location</option>
 </select>
 
+<!-- satellite select -->
+<select class="custom-select location-select" id="satelliteSelect">
+    <option selected>Sentinel 1</option>
+    <option>Sentinel 2</option>
+</select>
+
+<div id="msg3" style="width: 23%;margin-top: 1rem;"></div>
+
 <!-- submit -->
-<button type="button" class="btn btn-primary search-btn" onclick="handleSubmit()">Search</button>
+<button type="button" class="btn btn-primary" onclick="handleSubmit()">Search</button>
 
 <!-- spinner -->
-<div id="searchSpinner"></div>
+<div id="searchSpinner" class="spinner"></div>
 
 <!-- tabs -->
 <ul class="nav nav-tabs" id="myTab" role="tablist">

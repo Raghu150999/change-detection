@@ -10,14 +10,9 @@
     padding-top: 1em;
 }
 
-.search-btn {
-    margin-top: 0.8em;
-    margin-bottom: 0.8em;
-}
-
 .location-select {
     width: 23%;
-    display: block;
+    display: inline-block;
 }
 
 .card-display {
@@ -39,7 +34,8 @@
     margin: 0.5rem;
 }
 
-#searchSpinner {
+.spinner {
+    margin-top: 1rem;
     margin-left: 0.5rem;
     margin-bottom: 1rem;
 }
@@ -51,4 +47,9 @@
 .inputs, #msg {
     margin: 1rem;
     width: 50rem;
+}
+
+.month-card {
+    width: 40rem;
+    margin-left: 0rem;
 }

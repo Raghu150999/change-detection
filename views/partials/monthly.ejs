@@ -1,0 +1,16 @@
+<!-- Downloads Modal -->
+<%- include('modal.ejs', {id: 2}) %>
+
+<div style="margin-top: 2rem;">
+	<input id="month-picker" width="312" class="datepicker" />
+</div>
+
+<!-- submit -->
+<button type="button" class="btn btn-primary search-btn" onclick="monthSearch()">
+	Search
+</button>
+
+<!-- spinner -->
+<div id="searchSpinner3" class="spinner"></div>
+
+<div id="monthMosaic"></div>

@@ -1,7 +1,7 @@
 node_modules
 privatekey.json
 nodemon.json
-public/assets/thumb.png
+public/assets/test
 .scannerwork
 views/maps
 test.js

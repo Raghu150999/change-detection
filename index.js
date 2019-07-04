@@ -3,10 +3,10 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const morgan = require('morgan');
 const mongoose = require('mongoose');
-const cors = require('cors');
 const Utils = require('./utils/utils');
 const SceneMeta = require('./models/sceneMeta');
 
+// Note: Don't use cors unless you are making cross origin request for ex: if your client makes request to server other than the origin (i.e. is the default domain) (see project BESit1)
 
 require('dotenv').config();
 
@@ -21,7 +21,6 @@ const app = express()
 const api = require('./routes/api')(app);
 app.use(express.static('public'));
 app.set('view engine', 'ejs');
-app.use(cors());
 app.use(morgan('dev'));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json())
