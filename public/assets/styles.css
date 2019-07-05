@@ -53,3 +53,29 @@
     width: 40rem;
     margin-left: 0rem;
 }
+
+.classified-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.map {
+    position: absolute;
+    right: 1rem;
+    top: 0;
+    width: 50%;
+    height: 18rem;
+}
+
+.foot-print {
+    font-size: 1.8rem;
+    margin-left: 1rem;
+    top: 0.4rem;
+    position: relative;
+    opacity: 0.8;
+}
+
+.foot-print:hover {
+    opacity: 1;
+}

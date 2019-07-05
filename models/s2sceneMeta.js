@@ -6,7 +6,8 @@ let s2SceneMetaSchema = new Schema({
 	orbit: Number,
 	scenesAcquired: Number,
 	locationName: String,
-	scenes: Array
+	scenes: Array,
+	footprint: Array
 });
 
 let s2SceneMeta = mongoose.model('s2sceneMetas', s2SceneMetaSchema);

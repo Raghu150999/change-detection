@@ -31,7 +31,9 @@ router.post('/getdata', (req, res) => {
 					var metaData = {
 						date,
 						locationName,
-						scene: scenes[i]
+						scene: scenes[i],
+						footprint: sceneMeta.footprint,
+						point: sceneMeta.point
 					}
 					metas.push(metaData);
 					promises.push(Utils.getOpticalURL(image));

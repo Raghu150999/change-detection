@@ -115,19 +115,29 @@ module.exports = function(app) {
 		console.log('st');
 		s2SceneMeta.find({})
 		.then(result => {
-			console.log(result);
-			result.forEach(sceneMeta => {
-				Scene.find({sceneMetaID: sceneMeta._id})
-					.then(scenes => {
-						s2SceneMeta.findOneAndUpdate({_id: sceneMeta._id}, {$set: {scenes: scenes}})
-							.then(result => {
-								console.log('saved');
-							})
+			result.forEach((sceneMeta, index) => {
+				let scene = sceneMeta.scenes[0];
+				let imageID = scene.collectionID + '/' + scene.sceneID;
+				var image = ee.Image(imageID);
+				var geometry = image.geometry();
+				var polygons = geometry.coordinates().getInfo();
+				console.log(index);
+				// Fliping longlats to latlongs
+				polygons.forEach(polygon => {
+					polygon.forEach(coordinates => {
+						let tmp = coordinates[0];
+						coordinates[0] = coordinates[1];
+						coordinates[1] = tmp;
+					})
+				})
+				s2SceneMeta.findOneAndUpdate({_id: sceneMeta._id}, { $set: {footprint: polygons} })
+					.then(result => {
+						console.log('done');
 					})
 			})
 		})
 		res.send('ok');
 	});
-	
+
 	return router;
 }

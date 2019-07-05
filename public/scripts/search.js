@@ -7,6 +7,7 @@ let td = new Date(strd);
 let $start_date, $end_date;
 let cache; // Cached data variable
 let url = '';
+let mymap; // Map variable
 
 $(document).ready(function() {
 	$start_date = $('#start_date').datepicker({
@@ -52,6 +53,19 @@ $(document).ready(function() {
 	}
 	xhttp.open('GET', '/api/locations', true);
 	xhttp.send();
+
+	/*
+	------------------------------------------------------------
+		Loading the Map
+	------------------------------------------------------------
+	*/
+	mymap = L.map('mymap').setView([26.40, 90.619], 8);
+	L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}', {
+    attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+    maxZoom: 18,
+    id: 'mapbox.satellite',
+    accessToken: leafletkey
+	}).addTo(mymap);
 })
 
 var displayError2 = () => {
@@ -141,7 +155,7 @@ let handleSubmit = () => {
 		});
 }
 
-let viewTile = (id) => {
+let downloads = (id) => {
 	id = Number(id);
 	let data = cache[id];
 	axios.post('/api' + url + '/tile', data)
@@ -165,4 +179,30 @@ let viewTile = (id) => {
 			$('#modalBody1').html(html);
 			$('#dmodal1').modal();
 		})
+}
+
+let changeOpacity = (id) => {
+	let opacity = $('#slider' + id)[0].value/100;
+	$('#classifiedImage' + id).css('opacity', opacity);
+}
+
+let viewTile = (id) => {
+	id = Number(id);
+	let data = cache[id];
+	let state = data.state;
+	let footprint = data.footprint;
+	let point = data.point;
+	if(footprint == undefined || footprint == null) {
+		return;
+	}
+	if(!state || state == 0) {
+		cache[id].state = 1;
+		var polygon = L.polygon(footprint).addTo(mymap);
+		let tmp = point[0];
+		point[0] = point[1];
+		point[1] = tmp;
+		mymap.setView(point, 8);
+	} else {
+		mymap.setView(point, 8);
+	}
 }

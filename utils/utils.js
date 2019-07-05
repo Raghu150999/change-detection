@@ -82,7 +82,7 @@ var getImageVisParams = (type) => {
 		imageVisParam = {
 			min: 0,
 			max: 10,
-			palette: ['62eb4a', 'cyan', 'blue']
+			palette: ['white', 'red', 'blue']
 		}
 	}
 	return imageVisParam;
