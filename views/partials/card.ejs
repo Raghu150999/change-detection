@@ -1,6 +1,6 @@
 <div class="card card-display">
 	<div id="img<%= id %>" class="carousel slide carousel-images" style="position: relative;" data-ride="carousel">
-		<img class="d-block w-100" src="<%= sar_url %>" alt="First image">
+		<img class="d-block w-100" src="<%= base_url %>" alt="First image">
     <img class="d-block w-100 classified-image" src="<%= classified_url %>" alt="Second image" id="classifiedImage<%= id %>">
 	</div>
 	<div class="card-body">
@@ -14,5 +14,6 @@
 			<i class="fa fa-download" aria-hidden="true"></i><span> </span>Download
 		</a>
 		<i class="fa fa-paw foot-print" aria-hidden="true" onclick="viewTile('<%= id %>')"></i>
+		<i class="fa fa-image foot-print" aria-hidden="true" onclick="overlayImage('<%= id %>')"></i>
 	</div>
 </div>

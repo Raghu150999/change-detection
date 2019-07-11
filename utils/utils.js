@@ -48,10 +48,9 @@ var getImageVisParams = (type) => {
 	var imageVisParam;
 	if (type == 'classified') {
 		imageVisParam = {
-			bands: ['classification'], 
-			min: 0,
-			max: 1, 
-			palette: ['68dae6', '8f8a82']
+			min: 1,
+			max: 2,
+			palette: ['cyan', 'blue']
 		};
 	} else if (type == 'sar') {
 		imageVisParam = {
@@ -82,7 +81,7 @@ var getImageVisParams = (type) => {
 		imageVisParam = {
 			min: 0,
 			max: 10,
-			palette: ['white', 'red', 'blue']
+			palette: ['white', 'cyan', '3182eb']
 		}
 	}
 	return imageVisParam;
@@ -97,24 +96,6 @@ module.exports.getImages = (sceneMeta, sd, ed) => {
 											.filter(ee.Filter.eq('relativeOrbitNumber_start', sceneMeta.rons[0]))
 											.filter(ee.Filter.eq('relativeOrbitNumber_stop', sceneMeta.rons[1]));
 	return sentinel;
-}
-
-module.exports.getPreFlood = (sceneMeta) => {
-	var sentinel = getSentinel();
-	var point = ee.Geometry.Point(sceneMeta.coordinates);
-	sentinel = sentinel.filterBounds(point)
-		.filter(ee.Filter.eq('relativeOrbitNumber_start', sceneMeta.rons[0]))
-		.filter(ee.Filter.eq('relativeOrbitNumber_stop', sceneMeta.rons[1]));
-	var pfc = sentinel;
-	var pfc_2016 = pfc.filterDate('2016-01-01', '2016-06-01');
-	var pfc_2017 = pfc.filterDate('2017-01-01', '2017-06-01');
-	var pfc_2018 = pfc.filterDate('2018-01-01', '2018-06-01');
-	var pfc_2019 = pfc.filterDate('2019-01-01', '2019-06-01');
-	pfc = pfc_2018.merge(pfc_2017)
-								.merge(pfc_2016)
-								.merge(pfc_2019);
-	var mean = pfc.mean();
-	return mean;
 }
 
 module.exports.sendMail = (subject, text) => {
@@ -159,16 +140,13 @@ module.exports.sendMail = (subject, text) => {
 
 module.exports.getkmlURL = (image) => {
 	return new Promise((resolve, reject) => {
-		let geometry = image.geometry();
-		image = image.expression('b("classification") == 0 ? 100 : 0');
-		image = image.updateMask(image.gt(0))
-		image = image.clip(geometry)
+		image = image.multiply(100);
 		var vectors = image.reduceToVectors({
-			scale: 1000
+			scale: 500
 		});
 		var kml_url = vectors.getDownloadURL({
 			format: 'kml',
-			filename: 'river_layer'
+			filename: 'Flood_layer'
 		});
 		resolve(kml_url);
 	})
@@ -220,9 +198,97 @@ module.exports.getClassified = (image, sceneID) => {
 	}
 	var pre = ee.Image("users/raghu15sep99/" + titleID);
 	var mndwi = image.normalizedDifference(['B3', 'B11']);
-	var classified = mndwi.gt(0.09); // Change threshold accordingly
+	var classified = mndwi.gt(0.15); // Change threshold accordingly
 	var cloudmask = image.select('QA60').eq(0);
 	classified = classified.and(cloudmask);
 	classified = classified.select('nd').multiply(pre.select('constant'));
-	return classified;
+	return classified.updateMask(classified.gt(0));
+}
+
+module.exports.getMapId = (classified_image, visParam) => {
+	return new Promise((resolve, reject) => {
+		classified_image.getMap(getImageVisParams(visParam), obj => {
+			resolve(obj);
+		})
+	})
+}
+
+module.exports.getDownloadURL = (image) => {
+	return new Promise((resolve, reject) => {
+		image.getDownloadURL({
+			name: 'Layer',
+			bands: [],
+			scale: 100
+		}, url => {
+			resolve(url);
+		})
+	})
+}
+
+module.exports.getDate = (id) => {
+	let str = id[17] + id[18] + id[19] + id[20] + '-' + id[21] + id[22] + '-' + id[23] + id[24];
+	return new Date(str);
+}
+
+module.exports.getSarURL = (image) => {
+	return new Promise((resolve, reject) => {
+		image.getThumbURL(getImageVisParams('sar'), url => {
+			resolve(url);
+		})
+	})
+}
+
+let getPreFlood = (preFlood) => {
+	var preFlood_2018 = preFlood
+		.filterDate('2018-01-01', '2018-06-01')
+	var preFlood_2017 = preFlood
+		.filterDate('2017-01-01', '2017-06-01')
+	var preFlood_2016 = preFlood
+		.filterDate('2016-01-01', '2016-06-01')
+	var preFlood_2019 = preFlood
+		.filterDate('2019-01-01', '2019-06-01')
+	preFlood = preFlood_2018
+		.merge(preFlood_2017)
+		.merge(preFlood_2016)
+		.merge(preFlood_2019);
+	return preFlood.min();
+}
+
+module.exports.getPreFlood = getPreFlood;
+
+module.exports.getClassifiedForSAR = (after, before) => {
+	var geometry = after.geometry();
+	before = before.clip(geometry);
+	// Threshold smoothed radar intensities to identify "flooded" areas.
+	var SMOOTHING_RADIUS = 100;
+	// var DIFF_UPPER_THRESHOLD = -3;
+	// var diff_smoothed = after.focal_median(SMOOTHING_RADIUS, 'circle', 'meters')
+	// 	.subtract(before.focal_median(SMOOTHING_RADIUS, 'circle', 'meters'));
+	// var diff_thresholded = diff_smoothed.lt(DIFF_UPPER_THRESHOLD);
+	// diff_thresholded = diff_thresholded.updateMask(diff_thresholded);
+	// diff_thresholded = diff_thresholded.clip(geometry);
+	// diff_thresholded = diff_thresholded.select(['VV'], ['constant']);
+	var post = after.lt(-18).focal_median(SMOOTHING_RADIUS, 'circle', 'meters');
+	var pre = before.lt(-16).focal_median(SMOOTHING_RADIUS, 'circle', 'meters');;
+	var overlay = post.add(pre);
+	overlay = overlay.updateMask(overlay.gt(0));
+	overlay.clip(geometry);
+	return overlay;
+}
+
+module.exports.getClassifiedURLForSAR = (image) => {
+	return new Promise((resolve, reject) => {
+		image.getThumbURL(getImageVisParams('classified'), url => {
+			resolve(url);
+		})
+	})
+}
+
+module.exports.filterCollectionBySceneMeta = (sentinel, sceneMeta) => {
+	var point = ee.Geometry.Point(sceneMeta.coordinates);
+	var preFlood = sentinel
+		.filterBounds(point)
+		.filter(ee.Filter.eq('relativeOrbitNumber_start', sceneMeta.rons[0]))
+		.filter(ee.Filter.eq('relativeOrbitNumber_stop', sceneMeta.rons[0]));
+	return preFlood;
 }

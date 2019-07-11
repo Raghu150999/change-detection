@@ -17,7 +17,7 @@ module.exports = function(app) {
 		sd = sd.getFullYear() + '-' + (sd.getMonth() + 1) + '-' + sd.getDate();
 		ed = ed.getFullYear() + '-' + (ed.getMonth() + 1) + '-' + ed.getDate();
 		let locationName = req.body.locationName;
-
+		var sentinel = Utils.getSentinel();
 		Location.findOne({locationName})
 		.then(location => {
 			if(location == null) {
@@ -31,75 +31,48 @@ module.exports = function(app) {
 			}
 			let sceneMetas = location.sceneMetas;
 			let promises = [];
-			let promise;
-			// Get the trained classifier stored in app.locals
-			var trained = app.locals.trained;
+			let metas = [];
 			sceneMetas.forEach((sceneMeta, index) => {
 				console.log('sc', index);
 				var images = Utils.getImages(sceneMeta, sd, ed);
 				var list = images.toList(200);
 				var len = list.length().getInfo();
-				var idx = [];
+				var preFlood = Utils.getPreFlood(Utils.filterCollectionBySceneMeta(sentinel, sceneMeta));
 				for(var i = 0; i < len; i++) {
-					idx.push(i);
-				}
-				idx.forEach(i => {
-					promise = (i => {
+					console.log(i);
+					var image = ee.Image(list.get(i));
+					var geometry = image.geometry();
+					if (sceneMeta.isClipped) {
+						geometry = ee.Geometry.Polygon(sceneMeta.geometry);
+						image = image.clip(geometry);
+					}
+					var date = Utils.getDate(image.id().getInfo());
+					promises.push(Utils.getSarURL(image));
+					var classified = Utils.getClassifiedForSAR(image, preFlood);
+					promises.push(Utils.getClassifiedURLForSAR(classified));
+					promises.push(Utils.getMapId(classified, 'classified'));
+					let promise = ((geometry) => {
 						return new Promise((resolve, reject) => {
-							let promise;
-							let promises = [];
-
-							console.log(i);
-							var image = ee.Image(list.get(i));
-							var geometry = image.geometry();
-							if (sceneMeta.isClipped) {
-								geometry = ee.Geometry.Polygon(sceneMeta.geometry);
-								image = image.clip(geometry);
-							}
-							var date = new Date(image.toDictionary().get('segmentStartTime').getInfo());
-							promise = (image => {
-								return new Promise((resolve, reject) => {
-									image.getThumbURL(Utils.getImageVisParams('sar'), url => {
-										console.log(date);
-										let data = {
-											sar_url: url,
-											date,
-											locationName,
-											sceneMetaID: sceneMeta._id
-										}
-										resolve(data);
-									})
-								})
-							})(image)
-							promises.push(promise);
-
-							image = image.classify(trained);
-							image = image.focal_median(300, 'circle', 'meters');
-							
-							promise = (image => {
-								return new Promise((resolve, reject) => {
-									image.getThumbURL(Utils.getImageVisParams('classified'), url => {
-										let data = {
-											classified_url: url
-										}
-										resolve(data);
-									})
-								})
-							})(image)
-							promises.push(promise);
-
-
-							Promise.all(promises).then(function () {
-								let data = {
-									...arguments[0][0],
-									...arguments[0][1]
-								}
-								resolve(data);
+							geometry.coordinates().getInfo(arr => {
+								// Swapping to convert from long-lat to lat-long
+								arr[0].forEach(coordinates => {
+									let tmp = coordinates[0];
+									coordinates[0] = coordinates[1];
+									coordinates[1] = tmp;
+								});
+								resolve(arr);
 							})
 						})
-					})(i);
+					})(geometry);
 					promises.push(promise);
-				})
+					let meta = {
+						date,
+						locationName,
+						sceneMetaID: sceneMeta._id,
+						point: sceneMeta.coordinates
+					}
+					metas.push(meta);
+				}
 			})
 			console.log('c');
 			// Need to use classic functions (can't use arrow function. Error: arguments[0].forEach is not a function)
@@ -107,14 +80,25 @@ module.exports = function(app) {
 				console.log('f');
 				let html = '';
 				let dataCollection = [];
-				arguments[0].forEach((data, index) => {
-					data.id = index;
+				let len = arguments[0].length;
+				for(var i = 0; i < len; i+=4) {
+					let data = {
+						id: i/4,
+						...metas[i/4],
+						base_url: arguments[0][i],
+						classified_url: arguments[0][i+1],
+						mapid: arguments[0][i+2].mapid,
+						token: arguments[0][i+2].token,
+						footprint: arguments[0][i+3]
+					}
 					ejs.renderFile(__dirname + '/../views/partials/card.ejs', data, (err, str) => {
-						html += '\n';
 						html += str;
+						html += '\n';
 					});
 					dataCollection.push(data);
-				})
+				}
+				console.log(dataCollection);
+				console.log(html);
 				if (dataCollection.length == 0) {
 					html = `
 						<h2 style="margin: 1rem;" class="text-monospace">No products found!</h2>
@@ -136,13 +120,13 @@ module.exports = function(app) {
 		let sd = date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate();
 		date.setDate(date.getDate() + 3);
 		let ed = date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate();
+		var sentinel = Utils.getSentinel();
 		SceneMeta.findOne({_id: data.sceneMetaID})
 			.then(result => {
 				var images = Utils.getImages(result, sd, ed);
-				image = images.first();
-				var trained = app.locals.trained;
-				var classified = image.classify(trained);
-				classified = classified.focal_median(300, 'circle', 'meters');
+				var image = images.first();
+				var preFlood = Utils.getPreFlood(Utils.filterCollectionBySceneMeta(sentinel, result));
+				var classified = Utils.getClassifiedForSAR(image, preFlood);
 				Utils.getkmlURL(classified)
 					.then(kml_url => {
 						data.kml_url = kml_url;
@@ -183,37 +167,23 @@ module.exports = function(app) {
 					year++;
 				}
 				let ed = year + '-' + month + '-1';
-				var roiCollection = sentinel.filterBounds(polygon).filterDate(sd, ed);
-				var mosaic = ee.Image(roiCollection.mean()); // @ min or mean ? 
+				var roiCollection = sentinel.filterBounds(polygon);
+				var mosaic = ee.Image(roiCollection.filterDate(sd, ed).mosaic()); // @ min or mean ? 
 				mosaic = mosaic.clip(polygon);
-				promise = (mosaic => {
-					return new Promise((resolve, reject) => {
-						mosaic.getThumbURL(Utils.getImageVisParams('sar'), url => {
-							resolve(url);
-						});
-					})
-				})(mosaic);
-				promises.push(promise);
-				var trained = app.locals.trained;
-				var classified = mosaic.classify(trained);
-				classified = classified.focal_median(300, 'circle', 'meters');
-				promise = (image => {
-					return new Promise((resolve, reject) => {
-						image.getThumbURL(Utils.getImageVisParams('classified'), url => {
-							resolve(url);
-						})
-					})
-				})(classified)
-				promises.push(promise);
+				promises.push(Utils.getSarURL(mosaic));
+				var preFlood = Utils.getPreFlood(roiCollection);
+				preFlood = preFlood.clip(polygon);
+				classified = Utils.getClassifiedForSAR(mosaic, preFlood);
+				promises.push(Utils.getClassifiedURLForSAR(classified));
 				promise = Utils.getkmlURL(classified);
 				promises.push(promise);
 				Promise.all(promises).then(function() {
-					let sar_url = arguments[0][0];
+					let base_url = arguments[0][0];
 					let classified_url = arguments[0][1];
 					let kml_url = arguments[0][2];
 					let period = months[currmonth-1] + ' ' + year;
 					let data = {
-						sar_url,
+						base_url,
 						classified_url,
 						kml_url,
 						date,
@@ -293,7 +263,7 @@ module.exports = function(app) {
 					var dataCollection = [];
 					period = 'Jan to Jun ' + year;
 					let data = {
-						sar_url: arguments[0][0],
+						base_url: arguments[0][0],
 						classified_url: arguments[0][1],
 						kml_url: arguments[0][2],
 						period,
@@ -308,7 +278,7 @@ module.exports = function(app) {
 					});
 					period = 'Jul to Dec ' + year;
 					data = {
-						sar_url: arguments[0][3],
+						base_url: arguments[0][3],
 						classified_url: arguments[0][4],
 						kml_url: arguments[0][5],
 						period,

@@ -60,7 +60,7 @@ var monthSearch = () => {
 var downloadLinks = () => {
 	let template = `
 		<div class="container-fluid">
-			<a href="<%= sar_url %>" class="btn btn-primary" target="_blank">
+			<a href="<%= base_url %>" class="btn btn-primary" target="_blank">
 			<i class="fa fa-download" aria-hidden="true"></i><span> </span>Download SAR (jpeg)</a>
 			<br><br>
 			<a href="<%= classified_url %>" class="btn btn-primary" target="_blank">
@@ -106,7 +106,7 @@ var downloadYearLinks = (id) => {
 	id = Number(id);
 	let template = `
 		<div class="container-fluid">
-			<a href="<%= sar_url %>" class="btn btn-primary" target="_blank">
+			<a href="<%= base_url %>" class="btn btn-primary" target="_blank">
 			<i class="fa fa-download" aria-hidden="true"></i><span> </span>Download SAR (jpeg)</a>
 			<br><br>
 			<a href="<%= classified_url %>" class="btn btn-primary" target="_blank">

@@ -9,6 +9,41 @@ let cache; // Cached data variable
 let url = '';
 let mymap; // Map variable
 
+var loadMap = () => {
+	/*
+	------------------------------------------------------------
+		Loading the Map
+	------------------------------------------------------------
+	*/
+
+	/* Not using streets base for now.
+	var streets = L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}', {
+		attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+		maxZoom: 18,
+		id: 'mapbox.streets',
+		accessToken: mapboxkey
+	});
+	*/
+	var satellite = L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}', {
+		attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+		maxZoom: 18,
+		id: 'mapbox.streets',
+		accessToken: mapboxkey
+	});
+	mymap = L.map('mymap', {
+		center: [26.40, 90.619],
+		zoom: 8,
+		layers: [satellite] // Change default map here
+	});
+	/* For adding multiple base layers
+	var baseMaps = {
+		"streets": streets,
+		"satellite": satellite
+	};
+	L.control.layers(baseMaps, null).addTo(mymap);
+	*/
+}
+
 $(document).ready(function() {
 	$start_date = $('#start_date').datepicker({
 		change: function(e) {
@@ -53,19 +88,7 @@ $(document).ready(function() {
 	}
 	xhttp.open('GET', '/api/locations', true);
 	xhttp.send();
-
-	/*
-	------------------------------------------------------------
-		Loading the Map
-	------------------------------------------------------------
-	*/
-	mymap = L.map('mymap').setView([26.40, 90.619], 8);
-	L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}', {
-    attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
-    maxZoom: 18,
-    id: 'mapbox.satellite',
-    accessToken: leafletkey
-	}).addTo(mymap);
+	loadMap();
 })
 
 var displayError2 = () => {
@@ -157,14 +180,23 @@ let handleSubmit = () => {
 
 let downloads = (id) => {
 	id = Number(id);
-	let data = cache[id];
+	let data = {
+		scene: cache[id].scene,
+		base_url: cache[id].base_url,
+		classified_url: cache[id].classified_url,
+		locationName: cache[id].locationName,
+		footprint: cache[id].footprint,
+		point: cache[id].point,
+		date: cache[id].date,
+		sceneMetaID: cache[id].sceneMetaID
+	};
 	axios.post('/api' + url + '/tile', data)
 		.then(res => {
 			let data = res.data;
 			let type = url == '/flood' ? 'SAR' : 'Optical';
 			let template = `
 			<div class="container-fluid">
-				<a href="<%= sar_url %>" class="btn btn-primary" target="_blank">
+				<a href="<%= base_url %>" class="btn btn-primary" target="_blank">
 				<i class="fa fa-download" aria-hidden="true"></i><span> </span>Download ${type} (jpeg)</a>
 				<br><br>
 				<a href="<%= classified_url %>" class="btn btn-primary" target="_blank">
@@ -183,26 +215,59 @@ let downloads = (id) => {
 
 let changeOpacity = (id) => {
 	let opacity = $('#slider' + id)[0].value/100;
+	let tileLayer = cache[id].tileLayer;
+	if(tileLayer) {
+		console.log('changed');
+		tileLayer.setOpacity(opacity);
+	}
 	$('#classifiedImage' + id).css('opacity', opacity);
 }
+
 
 let viewTile = (id) => {
 	id = Number(id);
 	let data = cache[id];
-	let state = data.state;
+	let footprintState = data.footprintState;
 	let footprint = data.footprint;
 	let point = data.point;
-	if(footprint == undefined || footprint == null) {
+	if(!footprint) {
 		return;
 	}
-	if(!state || state == 0) {
-		cache[id].state = 1;
+	// Toggling polygon on map
+	if(footprintState == null || footprintState == undefined) {
+		cache[id].footprintState = 1;
 		var polygon = L.polygon(footprint).addTo(mymap);
-		let tmp = point[0];
-		point[0] = point[1];
-		point[1] = tmp;
-		mymap.setView(point, 8);
+		console.log(footprint);
+		cache[id].polygon = polygon;
+		mymap.setView([point[1], point[0]], 8);
+	} else if(footprintState == 0) {
+		var polygon = cache[id].polygon;
+		polygon.addTo(mymap);
+		mymap.setView([point[1], point[0]], 8);
+		cache[id].footprintState = 1;
 	} else {
-		mymap.setView(point, 8);
+		var polygon = cache[id].polygon;
+		polygon.remove();
+		cache[id].footprintState = 0;
+	}
+}
+
+let overlayImage = (id) => {
+	id = Number(id);
+	let data = cache[id];
+	let footprint = data.footprint;
+	if(!data.tileLayer) {
+		let mapid = data.mapid;
+		let token = data.token;
+		data.tileLayer = L.tileLayer(`https://earthengine.googleapis.com/map/${mapid}/{z}/{x}/{y}?token=${token}`);
+		data.tileLayer.addTo(mymap);
+		data.imageState = 1;
+	} else if(data.imageState == 0) {
+		data.tileLayer.addTo(mymap);
+		data.imageState = 1;
+		mymap.fitBounds(L.latLngBounds(footprint[0]));
+	} else {
+		data.tileLayer.remove();
+		data.imageState = 0;
 	}
 }

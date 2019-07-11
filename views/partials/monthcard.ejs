@@ -1,21 +1,7 @@
 <div class="card card-display month-card">
 	<div id="imgmonth<%= id %>" class="carousel slide carousel-images" data-ride="carousel">
-		<div class="carousel-inner">
-			<div class="carousel-item active">
-				<img class="d-block w-100" src="<%= sar_url %>" alt="First slide">
-			</div>
-			<div class="carousel-item">
-				<img class="d-block w-100" src="<%= classified_url %>" alt="Second slide">
-			</div>
-		</div>
-		<a class="carousel-control-prev" href="#imgmonth<%= id %>" role="button" data-slide="prev">
-			<span class="carousel-control-prev-icon" aria-hidden="true"></span>
-			<span class="sr-only">Previous</span>
-		</a>
-		<a class="carousel-control-next" href="#imgmonth<%= id %>" role="button" data-slide="next">
-			<span class="carousel-control-next-icon" aria-hidden="true"></span>
-			<span class="sr-only">Next</span>
-		</a>
+		<img class="d-block w-100" src="<%= base_url %>" alt="First image">
+    <img class="d-block w-100 classified-image" src="<%= classified_url %>" alt="Second image" id="classifiedImage<%= id %>">
 	</div>
 	<div class="card-body">
 		<h5 class="card-title"><%= locationName %></h5>

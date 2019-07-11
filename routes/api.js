@@ -116,24 +116,45 @@ module.exports = function(app) {
 		s2SceneMeta.find({})
 		.then(result => {
 			result.forEach((sceneMeta, index) => {
-				let scene = sceneMeta.scenes[0];
-				let imageID = scene.collectionID + '/' + scene.sceneID;
-				var image = ee.Image(imageID);
-				var geometry = image.geometry();
-				var polygons = geometry.coordinates().getInfo();
-				console.log(index);
-				// Fliping longlats to latlongs
-				polygons.forEach(polygon => {
-					polygon.forEach(coordinates => {
-						let tmp = coordinates[0];
-						coordinates[0] = coordinates[1];
-						coordinates[1] = tmp;
-					})
-				})
-				s2SceneMeta.findOneAndUpdate({_id: sceneMeta._id}, { $set: {footprint: polygons} })
-					.then(result => {
-						console.log('done');
-					})
+				console.log('sceneMeta no:', index);
+				var s2 = ee.ImageCollection("COPERNICUS/S2");
+				var point = ee.Geometry.Point(sceneMeta.point);
+				s2 = s2.filter(ee.Filter.eq('SENSING_ORBIT_NUMBER', sceneMeta.orbit)).filterBounds(point);
+				s2 = s2.sort('system:time_start', false);
+				var scenesAcquired = sceneMeta.scenesAcquired;
+				var list = s2.toList(600);
+				var len = list.length().getInfo();
+				console.log('len: ', len);
+				if(len > scenesAcquired) {
+					let scenes = sceneMeta.scenes;
+					for(var i = 0; i < len - scenesAcquired; i++) {
+						console.log(i);
+						var image = ee.Image(list.get(i));
+						var id = image.id().getInfo();
+						var date = id[0] + id[1] + id[2] + id[3] + '-' + id[4] + id[5] + '-' + id[6] + id[7];
+						date = new Date(date);
+						var footprint = image.geometry().coordinates().getInfo();
+						footprint[0].forEach(coordinates => {
+							let tmp = coordinates[0];
+							coordinates[0] = coordinates[1];
+							coordinates[1] = tmp;
+						})
+						let scene = new Scene({
+							sceneMetaID: sceneMeta._id,
+							locationName: sceneMeta.locationName,
+							sceneID: image.id().getInfo(),
+							collectionID: 'COPERNICUS/S2',
+							acquisitionDate: date,
+							footprint
+						})
+						scenes.push(scene);
+						scenesAcquired = len;
+					}
+					s2SceneMeta.findOneAndUpdate({_id: sceneMeta._id}, { $set: {scenes: scenes, scenesAcquired: scenesAcquired} })
+							.then(result => {
+								console.log('saved');
+							})
+				}
 			})
 		})
 		res.send('ok');
