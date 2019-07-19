@@ -4,7 +4,6 @@ const bodyParser = require('body-parser');
 const morgan = require('morgan');
 const mongoose = require('mongoose');
 const Utils = require('./utils/utils');
-const SceneMeta = require('./models/sceneMeta');
 
 // Note: Don't use cors unless you are making cross origin request for ex: if your client makes request to server other than the origin (i.e. is the default domain) (see project BESit1)
 
@@ -54,6 +53,7 @@ app.get('/', (req, res) => {
 let websiteDomain = 'www.website.com';
 
 // Checks for data every 6 hours and sends alert emails
+/*
 setInterval(function () {
   SceneMeta.find({})
     .then(result => {
@@ -82,7 +82,7 @@ setInterval(function () {
       })
     })
 }, 21600000)
-
+*/
 // setInterval(function() {
 //   Utils.sendMail('Test', 'Hi,\nThis is just a test email');
 // }, 10000)

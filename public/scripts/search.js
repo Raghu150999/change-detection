@@ -73,20 +73,20 @@ $(document).ready(function() {
 	let xhttp = new XMLHttpRequest();
 	xhttp.onreadystatechange = function() {
 		if(this.readyState == 4 && this.status == 200) {
-			locations = JSON.parse(this.responseText);
+			states = JSON.parse(this.responseText);
 
 			// Use '%' twice to escape ejs inside ejs
 			let template = `
-					<option selected>Choose a location</option>
-					<% locations.forEach(location => { %>
-						<option><%= location.locationName %></option>
+					<option selected>Choose a state</option>
+					<% states.forEach(state => { %>
+						<option><%= state %></option>
 					<% }) %>
 				`;
-			let html = ejs.render(template, {locations: locations});
+			let html = ejs.render(template, {states: states});
 			$('#locationSelect').html(html)
 		}
 	}
-	xhttp.open('GET', '/api/locations', true);
+	xhttp.open('GET', '/api/states', true);
 	xhttp.send();
 	loadMap();
 })
@@ -103,6 +103,22 @@ var displayError2 = () => {
 	$('#msg3').html(html);
 }
 
+function wait(ms) {
+	var start = Date.now(),
+			now = start;
+	while (now - start < ms) {
+		now = Date.now();
+	}
+}
+
+var delayedLoad = () => {
+	$('img').each(function() {
+		$(this).attr('src', $(this).data('delayedsrc'));
+		wait(200);
+		console.log('Image loaded');
+	})
+}
+
 var reloadImages = () => {
 	// Error handling code to reload images until it loads
 	if (document.images) {
@@ -116,7 +132,7 @@ var reloadImages = () => {
 				var img = this;
 				setTimeout(function () {
 					img.src = img.src + '&timestamp=' + new Date().getTime();
-				}, 200);
+				}, 1000);
 			}
 			document.images[i].onerror = imgErrorFunction;
 		}
@@ -126,8 +142,8 @@ var reloadImages = () => {
 let handleSubmit = () => {
 	let sd = $start_date.value();
 	let ed = $end_date.value();
-	let locationName = $('#locationSelect')[0].value;
-	if(locationName == 'Choose a location') {
+	let state = $('#locationSelect')[0].value;
+	if(state == 'Choose a state') {
 		displayError2();
 		return;
 	}
@@ -160,11 +176,11 @@ let handleSubmit = () => {
 	let data = {
 		start_date: sd,
 		end_date: ed,
-		locationName: $('#locationSelect')[0].value
+		state: $('#locationSelect')[0].value
 	};
 	let satellite = $('#satelliteSelect')[0].value;
 	if(satellite == 'Sentinel 1') {
-		url = '/flood';
+		url = '/sentinel1';
 	} else {
 		url = '/sentinel2';
 	}
@@ -174,6 +190,8 @@ let handleSubmit = () => {
 			$('#flood').html(html);
 			$('#searchSpinner').html('');
 			cache = res.data.data;
+			console.log('Cache', cache)
+			delayedLoad();
 			reloadImages();
 		});
 }
@@ -193,7 +211,7 @@ let downloads = (id) => {
 	axios.post('/api' + url + '/tile', data)
 		.then(res => {
 			let data = res.data;
-			let type = url == '/flood' ? 'SAR' : 'Optical';
+			let type = url == '/sentinel1' ? 'SAR' : 'Optical';
 			let template = `
 			<div class="container-fluid">
 				<a href="<%= base_url %>" class="btn btn-primary" target="_blank">
@@ -222,7 +240,6 @@ let changeOpacity = (id) => {
 	}
 	$('#classifiedImage' + id).css('opacity', opacity);
 }
-
 
 let viewTile = (id) => {
 	id = Number(id);

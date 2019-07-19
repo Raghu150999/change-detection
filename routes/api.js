@@ -1,11 +1,10 @@
 const router = require('express').Router();
-const Location = require('./../models/location');
+const Location = require('../models/s1SceneMeta');
 const ee = require('@google/earthengine');
 const Utils = require('./../utils/utils');
-const Scene = require('./../models/scene');
-const s2SceneMeta = require('./../models/s2sceneMeta');
-const scene = require('./../models/scene');
-
+const s1SceneMeta = require('./../models/s1SceneMeta');
+const Scene = require('./../models/Scene');
+const s2SceneMeta = require('./../models/s2SceneMeta');
 
 
 // Passing app object from index.js (contains app.locals.trained (trained classifier))
@@ -13,18 +12,33 @@ const scene = require('./../models/scene');
 module.exports = function(app) {
 	
 	// url: /api
-	const flood = require('./flood')(app);
+	const sentinel1 = require('./sentinel1')(app);
 	const alert = require('./alert');
 	const sentinel2 = require('./sentinel2');
-	router.use('/flood', flood);
+	router.use('/sentinel1', sentinel1);
 	router.use('/alert', alert);
 	router.use('/sentinel2', sentinel2);
 
-	// Get all locations
-	router.get('/locations', (req, res) => {
-		Location.find({})
-			.then(result => {
-				res.send(result);
+	// Get all states
+	router.get('/states', (req, res) => {
+		let m = new Map();
+		s1SceneMeta.find({})
+			.then(sceneMetas => {
+				sceneMetas.forEach(sceneMeta => {
+					m.set(sceneMeta.state, 1);
+				})
+				s2SceneMeta.find({})
+					.then(sceneMetas => {
+						sceneMetas.forEach(sceneMeta => {
+							m.set(sceneMeta.state, 1);
+						})
+						let response = [];
+						for(let k of m.keys()) {
+							response.push(k);
+						}
+						console.log(response);
+						res.send(response);
+					})
 			})
 	})
 
@@ -160,5 +174,297 @@ module.exports = function(app) {
 		res.send('ok');
 	});
 
+	
+
+	router.get('/ups1meta', (req, res) => {
+		let s1SceneMetas = [];
+		s1SceneMetas.push({
+			state: 'Assam',
+			locationName: 'Dhubri',
+			point: [90.24574382968297, 25.582548852396627],
+			rons: [150, 150],
+			scenesAcquired: 0,
+			scenes: []
+		});
+		s1SceneMetas.push({
+			state: 'Assam',
+			locationName: 'Guwahati',
+			point: [91.91566570468297, 26.588986751309925],
+			rons: [41, 41],
+			scenesAcquired: 0,
+			scenes: []
+		})
+		s1SceneMetas.push({
+			state: 'Assam',
+			locationName: 'Tezpur',
+			point: [93.98658855624547, 26.878439253018946],
+			rons: [143, 143],
+			scenesAcquired: 0,
+			scenes: []
+		})
+		s1SceneMetas.push({
+			state: 'Assam',
+			locationName: 'Dibrugarh',
+			point: [95.56312664218297, 27.430745913757196],
+			rons: [70, 70],
+			scenesAcquired: 0,
+			scenes: []
+		})
+		s1SceneMetas.push({
+			state: 'Bihar',
+			locationName: 'Patna',
+			point: [86.13685711093297, 25.622179379924304],
+			rons: [121, 121],
+			scenesAcquired: 0,
+			scenes: []
+		})
+		s1SceneMetas.push({
+			state: 'Bihar',
+			locationName: 'Siwan',
+			point: [84.21974285312047, 26.096716470427033],
+			rons: [19, 19],
+			scenesAcquired: 0,
+			scenes: []
+		})
+		s1SceneMetas.push({
+			state: 'UP',
+			locationName: 'Lucknow',
+			point: [81.93458660312047, 26.932323373664165],
+			rons: [56, 56],
+			scenesAcquired: 0,
+			scenes: []
+		})
+		s1SceneMetas.push({
+			state: 'UP',
+			locationName: 'Muzaffarnagar',
+			point: [78.57277019687047, 29.363474967925413],
+			rons: [63, 63],
+			scenesAcquired: 0,
+			scenes: []
+		})
+		s1SceneMetas.push({
+			state: 'Punjab',
+			locationName: 'Ludhiana',
+			point: [76.48536785312047, 30.95449861944583],
+			rons: [27, 27],
+			scenesAcquired: 0,
+			scenes: []
+		})
+		s1SceneMetas.push({
+			state: 'Punjab',
+			locationName: 'Amritsar',
+			point: [75.07911785312047, 31.58365289355127],
+			rons: [34, 34],
+			scenesAcquired: 0,
+			scenes: []
+		})
+		s1SceneMetas.forEach(sceneMeta => {
+			let newsceneMeta = new s1SceneMeta({
+				...sceneMeta
+			});
+			newsceneMeta.save()
+				.then(result => {
+					console.log('scenemeta saved');
+				})
+		})
+		res.send('Updated s1 meta');
+	})
+
+
+	router.get('/ups2meta', (req, res) => {
+		let s2SceneMetas = [];
+		s2SceneMetas.push({
+			state: 'Assam',
+			locationName: 'Chapar',
+			point: [90.62462490634437, 26.608569362603376],
+			orbit: 133,
+			scenesAcquired: 0,
+			scenes: []
+		})
+		s2SceneMetas.push({
+			state: 'Assam',
+			locationName: 'Nalbari',
+			point: [91.52550381259437, 26.537332369543954],
+			orbit: 133,
+			scenesAcquired: 0,
+			scenes: []
+		})
+		s2SceneMetas.push({
+			state: 'Assam',
+			locationName: 'Tezpur',
+			point: [92.45934170321937, 26.63066838281499],
+			orbit: 133,
+			scenesAcquired: 0,
+			scenes: []
+		})
+		s2SceneMetas.push({
+			state: 'Assam',
+			locationName: 'Dhubri',
+			point: [90.55870693759437, 25.609731160857915],
+			orbit: 133,
+			scenesAcquired: 0,
+			scenes: []
+		})
+		s2SceneMetas.push({
+			state: 'Assam',
+			locationName: 'Guwahati',
+			point: [91.53099697665687, 25.693911159393856],
+			orbit: 133,
+			scenesAcquired: 0,
+			scenes: []
+		})
+		s2SceneMetas.push({
+			state: 'Assam',
+			locationName: 'Gohpur',
+			point: [93.55797451571937, 26.74600489500688],
+			orbit: 90,
+			scenesAcquired: 0,
+			scenes: []
+		})
+		s2SceneMetas.push({
+			state: 'Assam',
+			locationName: 'Jorhat',
+			point: [94.53575771884437, 26.608569362603525],
+			orbit: 90,
+			scenesAcquired: 0,
+			scenes: []
+		})
+		s2SceneMetas.push({
+			state: 'Assam',
+			locationName: 'Dibrugarh',
+			point: [94.57970303134437, 27.66446024062424],
+			orbit: 90,
+			scenesAcquired: 0,
+			scenes: []
+		})
+		s2SceneMetas.push({
+			state: 'Assam',
+			locationName: 'Dibrugarh',
+			point: [94.57970303134437, 27.66446024062424],
+			orbit: 90,
+			scenesAcquired: 0,
+			scenes: []
+		})
+		s2SceneMetas.forEach(sceneMeta => {
+			let newsceneMeta = new s2SceneMeta({
+				...sceneMeta
+			});
+			newsceneMeta.save()
+				.then(result => {
+					console.log('scenemeta saved');
+				})
+		})
+		res.send('Updated s2 meta');
+	})
+
+	router.get('/updatedb', (req, res) => {
+		
+		s1SceneMeta.find({})
+		.then(sceneMetas => {
+			console.log('Sentinel1');
+			var sentinel = Utils.getSentinel();
+			sceneMetas.forEach((sceneMeta, index) => {
+				console.log('s1: ', index);
+				var point = ee.Geometry.Point(sceneMeta.point);
+				var coll = sentinel.filter(ee.Filter.eq('relativeOrbitNumber_start', sceneMeta.rons[0]))
+					.filter(ee.Filter.eq('relativeOrbitNumber_stop', sceneMeta.rons[1]))
+					.filterBounds(point);
+				// Sorts in descending order of time
+				coll = coll.sort('system:time_start', false);
+				var list = coll.toList(500);
+				var len = list.length().getInfo();
+				var scenesAcquired = sceneMeta.scenesAcquired;
+				var scenes = sceneMeta.scenes;
+				if(len > scenesAcquired) {
+					console.log('Images to be added', len - scenesAcquired);
+					for(var i = len - scenesAcquired - 1; i >= 0; i--) {
+						console.log(i);
+						var image = ee.Image(list.get(i));
+						var id = image.id().getInfo();
+						var acquisitionDate = Utils.getDate(id);
+						var sceneMetaID = sceneMeta._id;
+						var locationName = sceneMeta.locationName;
+						var sceneID = id;
+						var footprint = image.geometry().coordinates().getInfo();
+						footprint[0].forEach(coordinates => {
+							let tmp = coordinates[0];
+							coordinates[0] = coordinates[1];
+							coordinates[1] = tmp;
+						})
+						var scene = new Scene({
+							acquisitionDate,
+							sceneMetaID,
+							locationName,
+							sceneID,
+							footprint,
+							point: sceneMeta.point
+						});
+						scenes.push(scene);
+					}
+					scenesAcquired = len;
+					console.log('Added all scenes for scene meta');
+					s1SceneMeta.findOneAndUpdate({_id: sceneMeta._id}, {$set: {scenes: scenes, scenesAcquired}})
+						.then(result => {
+							console.log('s1 db updated');
+						})
+				}
+			})
+			console.log('s1 data updated');
+		})
+		s2SceneMeta.find({})
+			.then(sceneMetas => {
+				console.log('S2 initiated');
+				var sentinel = ee.ImageCollection('COPERNICUS/S2');
+				sceneMetas.forEach((sceneMeta, index) => {
+					console.log('s2: ', index);
+					var point = ee.Geometry.Point(sceneMeta.point);
+					var coll = sentinel.filter(ee.Filter.eq('SENSING_ORBIT_NUMBER', sceneMeta.orbit))
+						.filterBounds(point);
+					// Sorts in descending order of time
+					coll = coll.sort('system:time_start', false);
+					var list = coll.toList(500);
+					var len = list.length().getInfo();
+					var scenesAcquired = sceneMeta.scenesAcquired;
+					var scenes = sceneMeta.scenes;
+					if(len > scenesAcquired) {
+						console.log('Images to be added', len - scenesAcquired);
+						for(var i = len - scenesAcquired - 1; i >= 0; i--) {
+							console.log(i);
+							var image = ee.Image(list.get(i));
+							var id = image.id().getInfo();
+							var d = id[0] + id[1] + id[2] + id[3] + '-' + id[4] + id[5] + '-' + id[6] + id[7];
+							var acquisitionDate = new Date(d);
+							var sceneMetaID = sceneMeta._id;
+							var locationName = sceneMeta.locationName;
+							var sceneID = id;
+							var footprint = image.geometry().coordinates().getInfo();
+							footprint[0].forEach(coordinates => {
+								let tmp = coordinates[0];
+								coordinates[0] = coordinates[1];
+								coordinates[1] = tmp;
+							})
+							var collectionID = 'COPERNICUS/S2';
+							var scene = new Scene({
+								acquisitionDate,
+								sceneMetaID,
+								locationName,
+								sceneID,
+								footprint,
+								collectionID,
+								point: sceneMeta.point
+							});
+							scenes.push(scene);
+						}
+						scenesAcquired = len;
+						s2SceneMeta.findOneAndUpdate({_id: sceneMeta._id}, {$set: {scenes: scenes, scenesAcquired}})
+							.then(result => {
+								console.log('s2 db updated');
+							})
+					}
+				})
+				console.log('s2 data updated');
+			})
+		res.send('Request received, please check the console and wait for success message');
+	})
 	return router;
 }

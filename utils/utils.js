@@ -48,8 +48,8 @@ var getImageVisParams = (type) => {
 	var imageVisParam;
 	if (type == 'classified') {
 		imageVisParam = {
-			min: 1,
-			max: 2,
+			min: 2,
+			max: 3,
 			palette: ['cyan', 'blue']
 		};
 	} else if (type == 'sar') {
@@ -57,12 +57,6 @@ var getImageVisParams = (type) => {
 			min: -25,
 			max: 0
 		};
-	} else if(type == 'change map') {
-		imageVisParam = {
-			min: 1, 
-			max: 4, 
-			palette: ['white', 'brown', 'blue', 'white']
-		} 
 	} else if(type == 'optical') {
 		imageVisParam = {
 			min: 0,
@@ -71,17 +65,11 @@ var getImageVisParams = (type) => {
 			format: 'png',
 
 		}
-	} else if(type == 'ndwi') {
-		imageVisParam = {
-			min: 0,
-			max: 0.3,
-			palette: ['8f8a82', '68dae6']
-		}
 	} else if(type == 'nd') {
 		imageVisParam = {
-			min: 0,
-			max: 10,
-			palette: ['white', 'cyan', '3182eb']
+			min: 2,
+			max: 3,
+			palette: ['cyan', 'blue']
 		}
 	}
 	return imageVisParam;
@@ -89,13 +77,14 @@ var getImageVisParams = (type) => {
 
 module.exports.getImageVisParams = getImageVisParams;
 
-module.exports.getImages = (sceneMeta, sd, ed) => {
-	var sentinel = getSentinel();
-	var point = ee.Geometry.Point(sceneMeta.coordinates);
-	sentinel = sentinel.filterDate(sd, ed).filterBounds(point)
-											.filter(ee.Filter.eq('relativeOrbitNumber_start', sceneMeta.rons[0]))
-											.filter(ee.Filter.eq('relativeOrbitNumber_stop', sceneMeta.rons[1]));
-	return sentinel;
+module.exports.getScenes = (sceneMeta, sd, ed) => {
+	let scenes = sceneMeta.scenes;
+	scenes = scenes.filter(scene => {
+		if(scene.acquisitionDate < sd || scene.acquisitionDate > ed)
+			return false;
+		return true;
+	})
+	return scenes;
 }
 
 module.exports.sendMail = (subject, text) => {
@@ -190,19 +179,14 @@ module.exports.getClassifiedURL = (classified_image) => {
 	})
 }
 
-module.exports.getClassified = (image, sceneID) => {
-	var len = sceneID.length;
-	var titleID = '';
-	for(var i = len - 6; i < len; i++) {
-		titleID += sceneID[i];
-	}
-	var pre = ee.Image("users/raghu15sep99/" + titleID);
-	var mndwi = image.normalizedDifference(['B3', 'B11']);
-	var classified = mndwi.gt(0.15); // Change threshold accordingly
-	var cloudmask = image.select('QA60').eq(0);
+module.exports.getClassified = (image, preFlood) => {
+	var pre = preFlood.gt(0.02);
+	var ndwi = image.normalizedDifference(['B3', 'B8']);
+	var classified = ndwi.gt(0.02); // Change threshold accordingly
+	var cloudmask = image.select('QA60').unmask().eq(0);
 	classified = classified.and(cloudmask);
-	classified = classified.select('nd').multiply(pre.select('constant'));
-	return classified.updateMask(classified.gt(0));
+	classified = classified.multiply(2).add(pre);
+	return classified.updateMask(classified.gt(1));
 }
 
 module.exports.getMapId = (classified_image, visParam) => {
@@ -238,7 +222,7 @@ module.exports.getSarURL = (image) => {
 	})
 }
 
-let getPreFlood = (preFlood) => {
+let filterPreFlood = (preFlood) => {
 	var preFlood_2018 = preFlood
 		.filterDate('2018-01-01', '2018-06-01')
 	var preFlood_2017 = preFlood
@@ -251,10 +235,10 @@ let getPreFlood = (preFlood) => {
 		.merge(preFlood_2017)
 		.merge(preFlood_2016)
 		.merge(preFlood_2019);
-	return preFlood.min();
+	return preFlood;
 }
 
-module.exports.getPreFlood = getPreFlood;
+module.exports.filterPreFlood = filterPreFlood;
 
 module.exports.getClassifiedForSAR = (after, before) => {
 	var geometry = after.geometry();
@@ -270,8 +254,8 @@ module.exports.getClassifiedForSAR = (after, before) => {
 	// diff_thresholded = diff_thresholded.select(['VV'], ['constant']);
 	var post = after.lt(-18).focal_median(SMOOTHING_RADIUS, 'circle', 'meters');
 	var pre = before.lt(-16).focal_median(SMOOTHING_RADIUS, 'circle', 'meters');;
-	var overlay = post.add(pre);
-	overlay = overlay.updateMask(overlay.gt(0));
+	var overlay = post.multiply(2).add(pre);
+	overlay = overlay.updateMask(overlay.gt(1));
 	overlay.clip(geometry);
 	return overlay;
 }
@@ -282,13 +266,4 @@ module.exports.getClassifiedURLForSAR = (image) => {
 			resolve(url);
 		})
 	})
-}
-
-module.exports.filterCollectionBySceneMeta = (sentinel, sceneMeta) => {
-	var point = ee.Geometry.Point(sceneMeta.coordinates);
-	var preFlood = sentinel
-		.filterBounds(point)
-		.filter(ee.Filter.eq('relativeOrbitNumber_start', sceneMeta.rons[0]))
-		.filter(ee.Filter.eq('relativeOrbitNumber_stop', sceneMeta.rons[0]));
-	return preFlood;
 }

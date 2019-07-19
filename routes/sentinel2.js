@@ -2,7 +2,7 @@ const router = require('express').Router();
 const Utils = require('./../utils/utils');
 const ee = require('@google/earthengine');
 const ejs = require('ejs');
-const s2SceneMeta = require('./../models/s2sceneMeta');
+const SceneMeta = require('../models/s2SceneMeta');
 
 // /api/sentinel2
 
@@ -12,31 +12,36 @@ router.post('/getdata', (req, res) => {
 	sd = new Date(sd);
 	ed = new Date(ed);
 	ed.setDate(ed.getDate() + 2);
-	let locationName = req.body.locationName;
-	s2SceneMeta.find({locationName})
+	let state = req.body.state;
+	var sentinel = ee.ImageCollection("COPERNICUS/S2");
+	SceneMeta.find({state})
 		.then(sceneMetas => {
 			let promises = [];
 			let metas = [];
 			sceneMetas.forEach(sceneMeta => {
-				let scenes = sceneMeta.scenes;
+				let scenes = Utils.getScenes(sceneMeta, sd, ed);
+				var point = ee.Geometry.Point(sceneMeta.point);
+				var preFloodColl = sentinel.filterBounds(point)
+					.filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 15))
+					.filter(ee.Filter.eq('SENSING_ORBIT_NUMBER', sceneMeta.orbit));
+				preFloodColl = Utils.filterPreFlood(preFloodColl);
+				preFloodColl = preFloodColl.map(function(image) {
+					var ndwi = image.normalizedDifference(['B3', 'B8']);
+					return ndwi;
+					})
+				var preFlood = preFloodColl.max(); // Taking the max value for ndwi
 				for(var i = 0; i < scenes.length; i++) {
-					let date = scenes[i].acquisitionDate;
-					if(date < sd || date > ed) {
-						continue;
-					}
 					let imageID = scenes[i].collectionID + '/' + scenes[i].sceneID;
 					var image = ee.Image(imageID);
 					console.log(imageID);
-					var geometry = image.geometry();
 					promises.push(Utils.getOpticalURL(image));
-					var classified = Utils.getClassified(image, scenes[i].sceneID);
-					classified.clip(geometry);
+					var classified = Utils.getClassified(image, preFlood);
 					promises.push(Utils.getMapId(classified, 'nd'));
 					var metaData = {
-						date,
-						locationName,
+						date: scenes[i].acquisitionDate,
+						locationName: sceneMeta.locationName,
 						scene: scenes[i],
-						footprint: sceneMeta.footprint,
+						footprint: scenes[i].footprint,
 						point: sceneMeta.point,
 					}
 					metas.push(metaData);

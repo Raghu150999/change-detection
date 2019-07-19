@@ -5,9 +5,10 @@ let sceneSchema = new Schema({
 		sceneMetaID: String,
 		locationName: String,
 		sceneID: String,
-		collectionID: String,
 		acquisitionDate: Date,
-		footprint: Array
+		footprint: Array,
+		point: Array,
+		collectionID: String
 });
 
 let Scene = mongoose.model('scenes', sceneSchema);

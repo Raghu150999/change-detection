@@ -1,9 +1,8 @@
 const router = require('express').Router(); 
-const Utils = require('./../utils/utils');
-const Location = require('./../models/location');
+const Utils = require('../utils/utils');
 const ee = require('@google/earthengine');
 const ejs = require('ejs');
-const SceneMeta = require('./../models/sceneMeta');
+const SceneMeta = require('./../models/s1SceneMeta');
 
 // /api/flood
 
@@ -14,13 +13,11 @@ module.exports = function(app) {
 		sd = new Date(sd);
 		ed = new Date(ed);
 		ed.setDate(ed.getDate() + 2);
-		sd = sd.getFullYear() + '-' + (sd.getMonth() + 1) + '-' + sd.getDate();
-		ed = ed.getFullYear() + '-' + (ed.getMonth() + 1) + '-' + ed.getDate();
-		let locationName = req.body.locationName;
+		let state = req.body.state;
 		var sentinel = Utils.getSentinel();
-		Location.findOne({locationName})
-		.then(location => {
-			if(location == null) {
+		SceneMeta.find({state})
+		.then(sceneMetas => {
+			if(sceneMetas == null) {
 				var html = `
 				<h2 style="margin: 1rem;" class="text-monospace">No products found!</h2>
 				`;
@@ -28,68 +25,60 @@ module.exports = function(app) {
 					html,
 					data: []
 				});
+				return;
 			}
-			let sceneMetas = location.sceneMetas;
 			let promises = [];
 			let metas = [];
 			sceneMetas.forEach((sceneMeta, index) => {
-				console.log('sc', index);
-				var images = Utils.getImages(sceneMeta, sd, ed);
-				var list = images.toList(200);
-				var len = list.length().getInfo();
-				var preFlood = Utils.getPreFlood(Utils.filterCollectionBySceneMeta(sentinel, sceneMeta));
+				console.log('scenemeta: ', index);
+				// Filter Scenes by query
+				var scenes = Utils.getScenes(sceneMeta, sd, ed);
+				var len = scenes.length;
+				var point = ee.Geometry.Point(sceneMeta.point);
+				
+				// Get the preflood collection
+				var preFloodColl = sentinel
+					.filterBounds(point)
+					.filter(ee.Filter.eq('relativeOrbitNumber_start', sceneMeta.rons[0]))
+					.filter(ee.Filter.eq('relativeOrbitNumber_stop', sceneMeta.rons[0]));
+				
+				// Mosaic to get image
+				preFloodColl = Utils.filterPreFlood(preFloodColl);
+				var preFlood = preFloodColl.min(); // Taking the min back scatter values
+
 				for(var i = 0; i < len; i++) {
-					console.log(i);
-					var image = ee.Image(list.get(i));
-					var geometry = image.geometry();
-					if (sceneMeta.isClipped) {
-						geometry = ee.Geometry.Polygon(sceneMeta.geometry);
-						image = image.clip(geometry);
-					}
-					var date = Utils.getDate(image.id().getInfo());
+					console.log('Image: ', i);
+					var image = ee.Image('COPERNICUS/S1_GRD/' + scenes[i].sceneID).select('VV');
+					var date = scenes[i].acquisitionDate;
 					promises.push(Utils.getSarURL(image));
 					var classified = Utils.getClassifiedForSAR(image, preFlood);
 					promises.push(Utils.getClassifiedURLForSAR(classified));
 					promises.push(Utils.getMapId(classified, 'classified'));
-					let promise = ((geometry) => {
-						return new Promise((resolve, reject) => {
-							geometry.coordinates().getInfo(arr => {
-								// Swapping to convert from long-lat to lat-long
-								arr[0].forEach(coordinates => {
-									let tmp = coordinates[0];
-									coordinates[0] = coordinates[1];
-									coordinates[1] = tmp;
-								});
-								resolve(arr);
-							})
-						})
-					})(geometry);
-					promises.push(promise);
 					let meta = {
 						date,
-						locationName,
+						locationName: sceneMeta.locationName,
 						sceneMetaID: sceneMeta._id,
-						point: sceneMeta.coordinates
+						point: sceneMeta.point,
+						footprint: scenes[i].footprint
 					}
 					metas.push(meta);
 				}
 			})
-			console.log('c');
+			console.log('completed');
 			// Need to use classic functions (can't use arrow function. Error: arguments[0].forEach is not a function)
 			Promise.all(promises).then(function () {
-				console.log('f');
+				console.log('finished');
 				let html = '';
 				let dataCollection = [];
 				let len = arguments[0].length;
-				for(var i = 0; i < len; i+=4) {
+				for(var i = 0; i < len; i+=3) {
 					let data = {
-						id: i/4,
-						...metas[i/4],
+						id: i/3,
+						...metas[i/3],
 						base_url: arguments[0][i],
 						classified_url: arguments[0][i+1],
 						mapid: arguments[0][i+2].mapid,
-						token: arguments[0][i+2].token,
-						footprint: arguments[0][i+3]
+						token: arguments[0][i+2].token
 					}
 					ejs.renderFile(__dirname + '/../views/partials/card.ejs', data, (err, str) => {
 						html += str;
@@ -97,8 +86,6 @@ module.exports = function(app) {
 					});
 					dataCollection.push(data);
 				}
-				console.log(dataCollection);
-				console.log(html);
 				if (dataCollection.length == 0) {
 					html = `
 						<h2 style="margin: 1rem;" class="text-monospace">No products found!</h2>
@@ -114,18 +101,23 @@ module.exports = function(app) {
 
 	router.post('/tile', (req, res) => {
 		let data = req.body;
-		console.log(data.date);
 		let date = new Date(data.date);
-		date.setDate(date.getDate() - 1);
-		let sd = date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate();
-		date.setDate(date.getDate() + 3);
-		let ed = date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate();
+		let sd = date;
+		sd.setDate(sd.getDate() - 1);
+		let ed = date;
+		ed.setDate(ed.getDate() + 2);
 		var sentinel = Utils.getSentinel();
 		SceneMeta.findOne({_id: data.sceneMetaID})
-			.then(result => {
-				var images = Utils.getImages(result, sd, ed);
-				var image = images.first();
-				var preFlood = Utils.getPreFlood(Utils.filterCollectionBySceneMeta(sentinel, result));
+			.then(sceneMeta => {
+				var scenes = Utils.getScenes(sceneMeta, sd, ed);
+				var image = ee.Image('COPERNICUS/S1_GRD/' + scenes[0].sceneID).select('VV');
+				// Get the preflood collection
+				var preFloodColl = sentinel
+					.filterBounds(point)
+					.filter(ee.Filter.eq('relativeOrbitNumber_start', sceneMeta.rons[0]))
+					.filter(ee.Filter.eq('relativeOrbitNumber_stop', sceneMeta.rons[0]));
+				
+				var preFlood = Utils.getPreFlood(preFloodColl);
 				var classified = Utils.getClassifiedForSAR(image, preFlood);
 				Utils.getkmlURL(classified)
 					.then(kml_url => {
