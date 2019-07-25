@@ -79,3 +79,9 @@
 .foot-print:hover {
     opacity: 1;
 }
+
+.bigmap {
+    width: 1500px;
+    height: 750px;
+    margin-top: 1rem;
+}

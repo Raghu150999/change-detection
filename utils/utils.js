@@ -71,6 +71,18 @@ var getImageVisParams = (type) => {
 			max: 3,
 			palette: ['cyan', 'blue']
 		}
+	} else if(type == 'pre') {
+		imageVisParam = {
+			min: 0,
+			max: 1,
+			palette: ['white', 'blue']
+		}
+	} else if(type == 'post') {
+		imageVisParam = {
+			min: 0,
+			max: 1,
+			palette: ['white', 'cyan']
+		}
 	}
 	return imageVisParam;
 }
@@ -253,7 +265,7 @@ module.exports.getClassifiedForSAR = (after, before) => {
 	// diff_thresholded = diff_thresholded.clip(geometry);
 	// diff_thresholded = diff_thresholded.select(['VV'], ['constant']);
 	var post = after.lt(-18).focal_median(SMOOTHING_RADIUS, 'circle', 'meters');
-	var pre = before.lt(-16).focal_median(SMOOTHING_RADIUS, 'circle', 'meters');;
+	var pre = before.lt(-16).focal_median(SMOOTHING_RADIUS, 'circle', 'meters');
 	var overlay = post.multiply(2).add(pre);
 	overlay = overlay.updateMask(overlay.gt(1));
 	overlay.clip(geometry);

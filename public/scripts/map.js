@@ -1,36 +1,115 @@
-/**
- * Initialize the Google Map and add our custom layer overlay.
- * @param  {string} mapId
- * @param  {string} token
- */
-const initialize = (mapId, token) => {
-  // The Google Maps API calls getTileUrl() when it tries to display a map
-  // tile. This is a good place to swap in the MapID and token we got from
-  // the Node.js script. The other values describe other properties of the
-  // custom map type.
-  const eeMapOptions = {
-    getTileUrl: (tile, zoom) => {
-      const baseUrl = 'https://earthengine.googleapis.com/map';
-      const url = [baseUrl, mapId, zoom, tile.x, tile.y].join('/');
-      return `${url}?token=${token}`;
-    },
-    tileSize: new google.maps.Size(256, 256)
-  };
+strd = '' + (d.getMonth()+1) + '/' + d.getDate() + '/' + d.getFullYear();
+td = new Date(strd);
+let $sd, $ed;
+let bmap, bmapinit = false;
 
-  // Create the map type.
-  const mapType = new google.maps.ImageMapType(eeMapOptions);
+$(document).ready(function() {
+	$sd = $('#sd').datepicker({
+		change: function(e) {
+			let sd = new Date($sd.value());
+			if(sd > td) {
+				$sd.value(strd);
+			}
+		}
+	});
+	$ed = $('#ed').datepicker({
+		change: function(e) {
+			let ed = new Date($ed.value());
+			if(ed > td) {
+				$ed.value(strd);
+			}
+		}
+	});
 
-  const myLatLng = new google.maps.LatLng(-34.397, 150.644);
-  const mapOptions = {
-    center: myLatLng,
-    zoom: 8,
-    maxZoom: 10,
-    streetViewControl: false,
-  };
+	// Initializing to today's date
+	$sd.value(strd);
+	$ed.value(strd);
+})
+let pre, post;
 
-  // Create the base Google Map.
-  const map = new google.maps.Map(document.getElementById('map'), mapOptions);
+let getMap = () => {
+	let sd = $sd.value();
+	let ed = $ed.value();
+	let satellite = $('#satSelect')[0].value;
+	if(new Date(sd) > new Date(ed)) {
+		$('#searchSpinner4').html(`<p>Bad date ranges!</p>`);
+		return;
+	}
+	let spinner = `
+		<div class="spinner-border text-muted "></div>
+	`;
+	$('#searchSpinner4').html(spinner);
+	if(!bmapinit) {
+		loadMap2();
+		bmapinit = true;
+	}
+	if(pre) {
+		pre.remove();
+	}
+	if(post) {
+		post.remove();
+	}
+	axios.post('/api/getmap', {
+		sd,
+		ed,
+		satellite
+	})
+		.then(res => {
+			let data = res.data;
+			if(data.error) {
+				$('#searchSpinner4').html(`<p>${data.error}</p>`);
+			}
+			post = L.tileLayer(`https://earthengine.googleapis.com/map/${data.postmapid}/{z}/{x}/{y}?token=${data.posttoken}`);
+			post.addTo(bmap);
+			pre = L.tileLayer(`https://earthengine.googleapis.com/map/${data.premapid}/{z}/{x}/{y}?token=${data.pretoken}`);
+			pre.addTo(bmap);
+			$('#searchSpinner4').html('');
+		})
+}
 
-  // Add the EE layer to the map.
-  map.overlayMapTypes.push(mapType);
-};
+let loadMap2 = () => {
+	/*
+	------------------------------------------------------------
+		Loading the Map
+	------------------------------------------------------------
+	*/
+
+	var base = L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}', {
+		attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+		maxZoom: 18,
+		id: 'mapbox.streets', // change 'streets' to 'satellite' for satellite base layer
+		accessToken: mapboxkey
+	});
+	/*
+	var OSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+		maxZoom: 19,
+		attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+	});
+	*/
+	bmap = L.map('bmap', {
+		center: [26.40, 90.619],
+		zoom: 8,
+		layers: [base] // Change default map here
+	});
+	/* For adding multiple base layers
+	var baseMaps = {
+		"streets": streets,
+		"satellite": satellite
+	};
+	L.control.layers(baseMaps, null).addTo(mymap);
+	*/
+}
+
+let getStates = () => {
+	axios.get('/api/states')
+		.then(res => {
+			let states = res.data;
+			let template = `
+					<% states.forEach(state => { %>
+						<option><%= state %></option>
+					<% }) %>
+				`;
+			let html = ejs.render(template, {states: states});
+			$('#stateSelect').html(html);
+		})
+}

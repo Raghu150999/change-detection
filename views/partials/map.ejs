@@ -1,0 +1,38 @@
+<!-- start date picker -->
+<div style="
+	display: inline-block;
+">
+	<label for="sd">Start Date</label>
+	<input id="sd" width="200" class="datepicker" />
+</div>
+
+<!-- end date picker -->
+<div style="
+	display: inline-block;
+	margin-left: 1rem;
+">
+	<label for="ed">End Date</label>
+	<input id="ed" width="200" class="datepicker" />
+</div>
+
+<div style="
+	display: inline-block;
+	width: 20rem;
+	margin-left: 1rem;
+">
+	<!-- satellite select -->
+	<select class="custom-select" id="satSelect" style="display: inline-block; width: 200px;">
+		<option selected>Sentinel 1</option>
+		<option>Sentinel 2</option>
+	</select>
+
+	<!-- submit -->
+	<button type="button" class="btn btn-primary" onclick="getMap()" style="margin-left: 1rem;">Search</button>
+</div>
+<!-- spinner -->
+<div id="searchSpinner4" style="display: inline-block;"></div>
+
+<div id="bmap" class="bigmap"></div>
+
+
+<script src="/scripts/map.js"></script>

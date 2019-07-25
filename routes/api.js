@@ -36,10 +36,79 @@ module.exports = function(app) {
 						for(let k of m.keys()) {
 							response.push(k);
 						}
-						console.log(response);
 						res.send(response);
 					})
 			})
+	})
+
+	router.post('/getmap', (req, res) => {
+		let sd = new Date(req.body.sd), ed = new Date(req.body.ed), satellite = req.body.satellite;
+		sd.setDate(sd.getDate());
+		ed.setDate(ed.getDate() + 1);
+		sd = sd.getFullYear() + '-' + (sd.getMonth() + 1) + '-' + sd.getDate();
+		ed = ed.getFullYear() + '-' + (ed.getMonth() + 1) + '-' + ed.getDate();
+		var ind = ee.FeatureCollection("users/raghu15sep99/ind_shp");
+		var promises = [];
+		if(satellite == 'Sentinel 1') {
+			var sentinel = Utils.getSentinel();
+			preflood = sentinel.filterDate('2019-01-01', '2019-05-01');
+			preflood = preflood.min();
+			preflood = preflood.clipToCollection(ind);
+			preflood = preflood.lt(-18).focal_median(100, 'circle', 'meters');
+			preflood = preflood.updateMask(preflood.gt(0));
+			promises.push(Utils.getMapId(preflood, 'pre'));
+
+			var post = sentinel.filterDate(sd, ed);
+			if(post.size().getInfo() == 0) {
+				res.send({
+					error: 'No data found'
+				})
+				return;
+			}
+			post = post.mosaic();
+			post = post.clipToCollection(ind);
+			post = post.lt(-16).focal_median(100, 'circle', 'meters');
+			post = post.updateMask(post.gt(0));
+			promises.push(Utils.getMapId(post, 'post'));
+		} else {
+			var sentinel = ee.ImageCollection('COPERNICUS/S2');
+			var preflood = Utils.filterPreFlood(sentinel);
+			preflood = preflood.filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 15));
+			preflood = preflood.map(function(image) {
+				var ndwi = image.normalizedDifference(['B3', 'B8']);
+				return ndwi;
+				})
+			preflood = preflood.max();
+			preflood = preflood.clipToCollection(ind);
+			preflood = preflood.gt(0.02);
+			preflood = preflood.updateMask(preflood.gt(0));
+			promises.push(Utils.getMapId(preflood, 'pre'));
+
+			var post = sentinel.filterDate(sd, ed);
+			if(post.size().getInfo() == 0) {
+				res.send({
+					error: 'No data found'
+				})
+				return;
+			}
+			post = post.mosaic();
+			post = post.clipToCollection(ind);
+			var cloudmask = post.select('QA60').unmask().eq(0);
+			post = post.normalizedDifference(['B3', 'B8']);
+			post = post.gt(0.02);
+			post = post.and(cloudmask);
+			post = post.updateMask(post.gt(0));
+			promises.push(Utils.getMapId(post, 'post'));
+		}
+		Promise.all(promises).then(function() {
+			let data = {
+				premapid: arguments[0][0].mapid,
+				pretoken: arguments[0][0].token,
+				postmapid: arguments[0][1].mapid,
+				posttoken: arguments[0][1].token
+			}
+			res.send(data);
+		});
 	})
 
 	router.get('/maps', (req, res) => {
