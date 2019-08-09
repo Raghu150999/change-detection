@@ -47,13 +47,26 @@ module.exports = function(app) {
 		ed.setDate(ed.getDate() + 1);
 		sd = sd.getFullYear() + '-' + (sd.getMonth() + 1) + '-' + sd.getDate();
 		ed = ed.getFullYear() + '-' + (ed.getMonth() + 1) + '-' + ed.getDate();
-		var ind = ee.FeatureCollection("users/raghu15sep99/ind_shp");
+		var state = req.body.state;
+		var lvl1 = ee.FeatureCollection("users/raghu15sep99/gadm36_IND_1");
+		var data = lvl1.iterate(function(feature, first) {
+			first = ee.Dictionary(first);
+			var state = ee.String(first.get('state'));
+			var n = ee.Number(ee.String(feature.get('NAME_1')).compareTo(state));
+			var geometry = first.get('geometry');
+			geometry = ee.Algorithms.If(n.eq(0), feature.geometry(), geometry);
+			first = first.set('geometry', geometry);
+			return first;
+		}, {state: state, geometry: 0});
+		var	data = ee.Dictionary(data);
+		var geometry = ee.Geometry(data.get('geometry'));
+		console.log('Geometry fetched');
 		var promises = [];
 		if(satellite == 'Sentinel 1') {
 			var sentinel = Utils.getSentinel();
 			preflood = sentinel.filterDate('2019-01-01', '2019-05-01');
 			preflood = preflood.min();
-			preflood = preflood.clipToCollection(ind);
+			preflood = preflood.clip(geometry);
 			preflood = preflood.lt(-18).focal_median(100, 'circle', 'meters');
 			preflood = preflood.updateMask(preflood.gt(0));
 			promises.push(Utils.getMapId(preflood, 'pre'));
@@ -66,7 +79,7 @@ module.exports = function(app) {
 				return;
 			}
 			post = post.mosaic();
-			post = post.clipToCollection(ind);
+			post = post.clip(geometry);
 			post = post.lt(-16).focal_median(100, 'circle', 'meters');
 			post = post.updateMask(post.gt(0));
 			promises.push(Utils.getMapId(post, 'post'));
@@ -79,7 +92,7 @@ module.exports = function(app) {
 				return ndwi;
 				})
 			preflood = preflood.max();
-			preflood = preflood.clipToCollection(ind);
+			preflood = preflood.clip(geometry);
 			preflood = preflood.gt(0.02);
 			preflood = preflood.updateMask(preflood.gt(0));
 			promises.push(Utils.getMapId(preflood, 'pre'));
@@ -92,7 +105,7 @@ module.exports = function(app) {
 				return;
 			}
 			post = post.mosaic();
-			post = post.clipToCollection(ind);
+			post = post.clip(geometry);
 			var cloudmask = post.select('QA60').unmask().eq(0);
 			post = post.normalizedDifference(['B3', 'B8']);
 			post = post.gt(0.02);

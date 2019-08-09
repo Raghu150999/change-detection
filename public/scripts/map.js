@@ -4,6 +4,18 @@ let $sd, $ed;
 let bmap, bmapinit = false;
 
 $(document).ready(function() {
+	var states = ['Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 
+		'West Bengal', 'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 
+		'Gujarat', 'Haryana', 'Jammu and Kashmir', 'Jharkhand', 'Karnataka', 'Kerala',
+		'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Himachal Pradesh', 'NCT of Delhi'];
+	let template = `
+		<% states.forEach(state => { %>
+			<option><%= state %></option>
+		<% }) %>
+	`;
+	let html = ejs.render(template, {states: states});
+	$('#stateSelect').html(html);
+	
 	$sd = $('#sd').datepicker({
 		change: function(e) {
 			let sd = new Date($sd.value());
@@ -31,6 +43,7 @@ let getMap = () => {
 	let sd = $sd.value();
 	let ed = $ed.value();
 	let satellite = $('#satSelect')[0].value;
+	let state = $('#stateSelect')[0].value;
 	if(new Date(sd) > new Date(ed)) {
 		$('#searchSpinner4').html(`<p>Bad date ranges!</p>`);
 		return;
@@ -52,7 +65,8 @@ let getMap = () => {
 	axios.post('/api/getmap', {
 		sd,
 		ed,
-		satellite
+		satellite,
+		state
 	})
 		.then(res => {
 			let data = res.data;
@@ -98,18 +112,4 @@ let loadMap2 = () => {
 	};
 	L.control.layers(baseMaps, null).addTo(mymap);
 	*/
-}
-
-let getStates = () => {
-	axios.get('/api/states')
-		.then(res => {
-			let states = res.data;
-			let template = `
-					<% states.forEach(state => { %>
-						<option><%= state %></option>
-					<% }) %>
-				`;
-			let html = ejs.render(template, {states: states});
-			$('#stateSelect').html(html);
-		})
 }
